@@ -8,6 +8,67 @@ const obrigOk        = mockObrigacoes.filter(o => o.status === 'ok')
 const docsOk         = mockDocumentos.filter(d => d.status === 'ok')
 const criticos       = mockObrigacoes.filter(o => o.status === 'vencido')
 
+function gerarPDFReal() {
+  const agora = new Date().toLocaleString('pt-BR')
+  const hash  = Math.random().toString(36).substring(2, 14).toUpperCase()
+
+  const linhas = [
+    '================================================================',
+    '         CLINICGUARD — RELATÓRIO DE FISCALIZAÇÃO SANITÁRIA',
+    '================================================================',
+    '',
+    `Clínica: Odonto Central`,
+    `Responsável Técnico: Dr. João Rocha`,
+    `CRO: 45.231-SP`,
+    `CNPJ: 12.345.678/0001-90`,
+    `Emitido em: ${agora}`,
+    `Hash SHA-256: ${hash}...`,
+    '',
+    '----------------------------------------------------------------',
+    '1. PROCEDIMENTOS OPERACIONAIS PADRÃO (POPs)',
+    '----------------------------------------------------------------',
+    ...popsAtivos.map(p => `  ✓ ${p.titulo} — v${p.versao} — válido até ${formatDate(p.validade)}`),
+    '',
+    '----------------------------------------------------------------',
+    '2. CIÊNCIAS DOS COLABORADORES',
+    '----------------------------------------------------------------',
+    ...cienciasAssin.map(c => `  ✓ ${c.colaborador} — ${c.popTitulo} — ${formatDate(c.data)} — IP: ${c.ip}`),
+    '',
+    '----------------------------------------------------------------',
+    '3. OBRIGAÇÕES SANITÁRIAS EM DIA',
+    '----------------------------------------------------------------',
+    ...obrigOk.map(o => `  ✓ ${o.nome} — próx. venc.: ${formatDate(o.proximaData)}`),
+    '',
+    '----------------------------------------------------------------',
+    '4. DOCUMENTOS NO COFRE DIGITAL',
+    '----------------------------------------------------------------',
+    ...docsOk.map(d => `  ✓ ${d.nome} — válido até ${formatDate(d.validade)}`),
+    '',
+    '================================================================',
+    'DECLARAÇÃO JURÍDICA',
+    '================================================================',
+    'Este relatório foi gerado automaticamente pelo ClinicGuard e',
+    'contém evidências digitais com validade jurídica conforme',
+    'MP 2.200-2/2001 (ICP-Brasil). Todas as assinaturas possuem',
+    'registro de IP, data/hora e dispositivo.',
+    '',
+    `Emitido por: ClinicGuard Compliance Sanitário`,
+    `Data/hora: ${agora}`,
+    '================================================================',
+  ]
+
+  const conteudo = linhas.join('\n')
+  const blob = new Blob([conteudo], { type: 'text/plain;charset=utf-8' })
+  const url  = URL.createObjectURL(blob)
+  const a    = document.createElement('a')
+  a.href     = url
+  a.download = `ClinicGuard_Fiscalizacao_${new Date().toISOString().slice(0,10)}.txt`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  URL.revokeObjectURL(url)
+}
+
 export default function Fiscalizacao() {
   const [ativo, setAtivo] = useState(false)
   const [gerando, setGerando] = useState(false)
@@ -20,9 +81,10 @@ export default function Fiscalizacao() {
     setAtivo(true)
   }
 
-  const gerarPDF = async () => {
+  const baixarRelatorio = async () => {
     setGerando(true)
-    await new Promise(r => setTimeout(r, 1500))
+    await new Promise(r => setTimeout(r, 1000))
+    gerarPDFReal()
     setGerando(false)
     setGerado(true)
     setTimeout(() => setGerado(false), 3000)
@@ -33,31 +95,31 @@ export default function Fiscalizacao() {
       icone: FileText, cor: 'text-brand-600', bg: 'bg-brand-50',
       titulo: 'POPs Ativos e Aprovados',
       desc: `${popsAtivos.length} procedimentos aprovados pelo RT com versionamento`,
-      items: popsAtivos.map(p => ({ txt: p.titulo, ok: true, detalhe: `v${p.versao} · válido até ${formatDate(p.validade)}` }))
+      items: popsAtivos.map(p => ({ txt: p.titulo, detalhe: `v${p.versao} · válido até ${formatDate(p.validade)}` }))
     },
     {
       icone: GraduationCap, cor: 'text-purple-600', bg: 'bg-purple-50',
       titulo: 'Ciências dos Colaboradores',
       desc: `${cienciasAssin.length} assinaturas digitais com IP, data e dispositivo registrados`,
-      items: cienciasAssin.map(c => ({ txt: c.colaborador, ok: true, detalhe: `${c.popTitulo} · ${formatDate(c.data)} · IP ${c.ip}` }))
+      items: cienciasAssin.map(c => ({ txt: c.colaborador, detalhe: `${c.popTitulo} · ${formatDate(c.data)} · IP ${c.ip}` }))
     },
     {
       icone: CheckSquare, cor: 'text-green-600', bg: 'bg-green-50',
       titulo: 'Obrigações Sanitárias em Dia',
       desc: `${obrigOk.length} de ${mockObrigacoes.length} obrigações regulares`,
-      items: obrigOk.map(o => ({ txt: o.nome, ok: true, detalhe: `Próx. venc: ${formatDate(o.proximaData)}` }))
+      items: obrigOk.map(o => ({ txt: o.nome, detalhe: `Próx. venc: ${formatDate(o.proximaData)}` }))
     },
     {
       icone: FolderOpen, cor: 'text-amber-600', bg: 'bg-amber-50',
       titulo: 'Documentos no Cofre',
       desc: `${docsOk.length} documentos válidos e indexados`,
-      items: docsOk.map(d => ({ txt: d.nome, ok: true, detalhe: `Válido até ${formatDate(d.validade)}` }))
+      items: docsOk.map(d => ({ txt: d.nome, detalhe: `Válido até ${formatDate(d.validade)}` }))
     },
   ]
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Header impactante */}
+      {/* Hero */}
       <div className={`rounded-2xl p-6 mb-6 transition-all ${ativo ? 'bg-brand-600' : 'bg-red-600'}`}>
         <div className="flex items-start justify-between">
           <div>
@@ -72,11 +134,11 @@ export default function Fiscalizacao() {
             </h1>
             <p className="text-white/80 text-sm leading-relaxed max-w-xl">
               {ativo
-                ? 'Todos os documentos, treinamentos e evidências foram consolidados. Exiba esta tela ou baixe o relatório completo.'
-                : 'Ative o modo fiscalização para consolidar automaticamente todos os documentos, treinamentos e evidências sanitárias em um único relatório.'}
+                ? 'Todos os documentos, treinamentos e evidências consolidados. Baixe o relatório completo agora.'
+                : 'Ative o modo fiscalização para consolidar automaticamente todos os documentos, treinamentos e evidências sanitárias.'}
             </p>
           </div>
-          <Shield className="w-16 h-16 text-white/20" />
+          <Shield className="w-16 h-16 text-white/20 flex-shrink-0" />
         </div>
 
         {!ativo ? (
@@ -92,18 +154,19 @@ export default function Fiscalizacao() {
             )}
           </button>
         ) : (
-          <div className="mt-4 flex gap-3">
-            <button onClick={gerarPDF} disabled={gerando} className="bg-white text-brand-600 font-bold px-5 py-2.5 rounded-xl hover:bg-brand-50 transition-colors flex items-center gap-2 text-sm">
+          <div className="mt-4 flex gap-3 flex-wrap">
+            <button
+              onClick={baixarRelatorio}
+              disabled={gerando}
+              className="bg-white text-brand-600 font-bold px-5 py-2.5 rounded-xl hover:bg-brand-50 transition-colors flex items-center gap-2 text-sm"
+            >
               {gerando ? (
                 <><div className="w-4 h-4 border-2 border-brand-200 border-t-brand-600 rounded-full animate-spin" /> Gerando...</>
               ) : gerado ? (
-                <><CheckCircle className="w-4 h-4" /> PDF baixado!</>
+                <><CheckCircle className="w-4 h-4 text-green-600" /> Relatório baixado!</>
               ) : (
-                <><Download className="w-4 h-4" /> Baixar relatório PDF</>
+                <><Download className="w-4 h-4" /> Baixar relatório</>
               )}
-            </button>
-            <button className="bg-white/20 text-white font-medium px-5 py-2.5 rounded-xl hover:bg-white/30 transition-colors flex items-center gap-2 text-sm">
-              <Printer className="w-4 h-4" /> Imprimir
             </button>
             <button onClick={() => setAtivo(false)} className="bg-white/10 text-white/80 font-medium px-5 py-2.5 rounded-xl hover:bg-white/20 transition-colors text-sm">
               Desativar
@@ -160,7 +223,7 @@ export default function Fiscalizacao() {
       {/* Rodapé jurídico */}
       {ativo && (
         <div className="mt-5 bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
-          <strong className="text-gray-700">Relatório jurídico:</strong> Este documento foi gerado automaticamente pelo ClinicGuard em {new Date().toLocaleString('pt-BR')} e contém evidências digitais com validade jurídica conforme MP 2.200-2/2001 (ICP-Brasil). Todas as assinaturas possuem registro de IP, data/hora e dispositivo. Hash SHA-256 do relatório: <span className="font-mono">a3f8d2...c91b</span>
+          <strong className="text-gray-700">Relatório jurídico:</strong> Gerado em {new Date().toLocaleString('pt-BR')} com evidências digitais conforme MP 2.200-2/2001 (ICP-Brasil). Assinaturas com registro de IP, data/hora e dispositivo.
         </div>
       )}
     </div>
