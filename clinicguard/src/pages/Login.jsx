@@ -4,7 +4,7 @@ import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 
 export default function Login() {
-  const [email, setEmail] = useState('joao@odocentral.com')
+  const [email, setEmail] = useState('paulo@buccalodonto.com.br')
   const [senha, setSenha] = useState('123456')
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [erro, setErro] = useState('')
@@ -95,7 +95,7 @@ export default function Login() {
 
           <div className="mt-4 p-3 bg-brand-50 rounded-lg">
             <p className="text-xs text-brand-600 font-medium">Demo — acesso rápido:</p>
-            <p className="text-xs text-brand-600">Email: joao@odocentral.com</p>
+            <p className="text-xs text-brand-600">Email: paulo@buccalodonto.com.br</p>
             <p className="text-xs text-brand-600">Senha: 123456</p>
           </div>
         </div>

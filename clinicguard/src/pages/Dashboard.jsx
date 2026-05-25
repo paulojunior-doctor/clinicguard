@@ -1,68 +1,96 @@
 import { useNavigate } from 'react-router-dom'
-import { ShieldAlert, FileText, GraduationCap, CheckSquare, FolderOpen, TrendingUp, AlertTriangle, CheckCircle, Clock } from 'lucide-react'
-import { ScoreRing, StatusBadge } from '@/components/ui'
-import { mockObrigacoes, mockPOPs, mockCiencias, mockColaboradores, formatDate } from '@/lib/mockData'
-
-const alertasVencidos = mockObrigacoes.filter(o => o.status === 'vencido')
-const alertasAlerta   = mockObrigacoes.filter(o => o.status === 'alerta')
-const cienciasPendentes = mockColaboradores.filter(c =>
-  !mockCiencias.find(ci => ci.colaboradorId === c.id && ci.assinado)
-)
-
-const metrics = [
-  { label: 'POPs ativos',         value: mockPOPs.filter(p => p.status === 'ativo').length,  icon: FileText,      color: 'text-brand-600', bg: 'bg-brand-50' },
-  { label: 'Ciências pendentes',  value: cienciasPendentes.length,                            icon: GraduationCap, color: 'text-amber-600', bg: 'bg-amber-50' },
-  { label: 'Obrigações vencidas', value: alertasVencidos.length,                              icon: AlertTriangle, color: 'text-red-600',   bg: 'bg-red-50' },
-  { label: 'Docs no cofre',       value: 5,                                                    icon: FolderOpen,    color: 'text-purple-600', bg: 'bg-purple-50' },
-]
-
-const scorePorCategoria = [
-  { label: 'POPs e Procedimentos', pct: 92, color: 'bg-brand-400' },
-  { label: 'Documentação',         pct: 80, color: 'bg-amber-400' },
-  { label: 'Treinamentos',         pct: 74, color: 'bg-amber-400' },
-  { label: 'Equipamentos',         pct: 95, color: 'bg-brand-400' },
-  { label: 'Resíduos e Ambiente',  pct: 88, color: 'bg-brand-400' },
-]
+import { ShieldAlert, FileText, GraduationCap, CheckSquare, FolderOpen, TrendingUp, AlertTriangle, CheckCircle, Clock, Loader, Users } from 'lucide-react'
+import { ScoreRing } from '@/components/ui'
+import { usePOPs, useCiencias, useObrigacoes, useDocumentos, useColaboradores, useClinicaId } from '@/lib/useSupabase'
+import { formatDate } from '@/lib/mockData'
 
 export default function Dashboard() {
-  const navigate = useNavigate()
+  const navigate    = useNavigate()
+  const clinicaId   = useClinicaId()
+
+  const { pops,          loading: l1 } = usePOPs(clinicaId)
+  const { ciencias,      loading: l2 } = useCiencias(clinicaId)
+  const { obrigacoes,    loading: l3 } = useObrigacoes(clinicaId)
+  const { documentos,    loading: l4 } = useDocumentos(clinicaId)
+  const { colaboradores, loading: l5 } = useColaboradores(clinicaId)
+
+  const loading = l1 || l2 || l3 || l4 || l5
+
+  // Métricas reais
+  const popsAtivos      = pops.filter(p => p.status === 'ativo').length
+  const cienciasPend    = ciencias.filter(c => !c.assinado).length
+  const obrigVencidas   = obrigacoes.filter(o => o.status === 'vencido').length
+  const totalDocs       = documentos.length
+
+  // Score sanitário calculado
+  const calcScore = () => {
+    if (pops.length === 0) return 0
+    let score = 100
+    // Penalidades
+    score -= obrigacoes.filter(o => o.status === 'vencido').length * 10
+    score -= obrigacoes.filter(o => o.status === 'alerta').length * 3
+    if (ciencias.length > 0) {
+      const pctAssinado = ciencias.filter(c => c.assinado).length / ciencias.length
+      score -= Math.round((1 - pctAssinado) * 15)
+    }
+    return Math.max(0, Math.min(100, score))
+  }
+  const score = calcScore()
+
+  // Score por categoria
+  const scoreCateg = [
+    { label: 'POPs e Procedimentos', pct: pops.length > 0 ? Math.round((pops.filter(p => p.status === 'ativo').length / pops.length) * 100) : 0, color: 'bg-brand-400' },
+    { label: 'Documentação',         pct: documentos.length > 0 ? Math.round((documentos.filter(d => d.status === 'ok').length / documentos.length) * 100) : 0, color: 'bg-amber-400' },
+    { label: 'Treinamentos',         pct: ciencias.length > 0 ? Math.round((ciencias.filter(c => c.assinado).length / ciencias.length) * 100) : 0, color: 'bg-amber-400' },
+    { label: 'Obrigações Sanitárias', pct: obrigacoes.length > 0 ? Math.round((obrigacoes.filter(o => o.status === 'ok').length / obrigacoes.length) * 100) : 0, color: 'bg-brand-400' },
+  ]
+
+  const alertas = obrigacoes.filter(o => o.status === 'vencido' || o.status === 'alerta').slice(0, 5)
+
+  const metrics = [
+    { label: 'POPs ativos',         value: popsAtivos,    icon: FileText,      color: 'text-brand-600',  bg: 'bg-brand-50' },
+    { label: 'Ciências pendentes',  value: cienciasPend,  icon: GraduationCap, color: 'text-amber-600',  bg: 'bg-amber-50' },
+    { label: 'Obrigações vencidas', value: obrigVencidas, icon: AlertTriangle, color: 'text-red-600',    bg: 'bg-red-50' },
+    { label: 'Docs no cofre',       value: totalDocs,     icon: FolderOpen,    color: 'text-purple-600', bg: 'bg-purple-50' },
+  ]
+
+  const scoreLabel = score >= 90 ? 'Excelente' : score >= 75 ? 'Bom' : score >= 60 ? 'Regular' : 'Crítico'
+
+  if (loading) return (
+    <div className="p-6 flex items-center justify-center min-h-96 gap-2 text-gray-400">
+      <Loader className="w-5 h-5 animate-spin" /> Carregando dados da Buccal Odontologia...
+    </div>
+  )
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Visão geral</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Odonto Central · Responsável Técnico: Dr. João Rocha</p>
+          <p className="text-sm text-gray-500 mt-0.5">Buccal Odontologia · Responsável Técnico: Dr. Paulo Vieira Junior</p>
         </div>
-        <button
-          onClick={() => navigate('/fiscalizacao')}
-          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm"
-        >
-          <ShieldAlert className="w-4 h-4" />
-          Modo Fiscalização
+        <button onClick={() => navigate('/fiscalizacao')}
+          className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
+          <ShieldAlert className="w-4 h-4" /> Modo Fiscalização
         </button>
       </div>
 
       {/* Score + Métricas */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-        {/* Score Card */}
         <div className="card p-5 flex items-center gap-5">
-          <ScoreRing score={87} size={88} />
+          <ScoreRing score={score} size={88} />
           <div className="flex-1">
             <p className="text-xs text-gray-400 mb-1">Score Sanitário</p>
-            <p className="text-base font-semibold text-gray-900">Bom — 87/100</p>
-            <p className="text-xs text-gray-500 mt-1 leading-relaxed">3 itens críticos pendentes. Resolva para atingir 95+.</p>
-            <button
-              onClick={() => navigate('/obrigacoes')}
-              className="text-xs text-brand-600 font-medium mt-2 hover:underline"
-            >
+            <p className="text-base font-semibold text-gray-900">{scoreLabel} — {score}/100</p>
+            <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+              {obrigVencidas > 0 ? `${obrigVencidas} obrigação(ões) vencida(s).` : cienciasPend > 0 ? `${cienciasPend} ciência(s) pendente(s).` : 'Tudo em dia! ✓'}
+            </p>
+            <button onClick={() => navigate('/obrigacoes')} className="text-xs text-brand-600 font-medium mt-2 hover:underline">
               Ver pendências →
             </button>
           </div>
         </div>
 
-        {/* Métricas */}
         <div className="lg:col-span-2 grid grid-cols-2 sm:grid-cols-4 gap-3">
           {metrics.map(({ label, value, icon: Icon, color, bg }) => (
             <div key={label} className="card p-4">
@@ -76,22 +104,22 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Score por categoria */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+        {/* Score por categoria */}
         <div className="card p-5">
           <div className="flex items-center gap-2 mb-4">
             <TrendingUp className="w-4 h-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Score por categoria</h2>
           </div>
           <div className="space-y-3">
-            {scorePorCategoria.map(({ label, pct, color }) => (
+            {scoreCateg.map(({ label, pct, color }) => (
               <div key={label}>
                 <div className="flex justify-between text-xs mb-1">
                   <span className="text-gray-600">{label}</span>
                   <span className="font-medium text-gray-900">{pct}%</span>
                 </div>
                 <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className={`h-full ${color} rounded-full transition-all`} style={{ width: `${pct}%` }} />
+                  <div className={`h-full ${pct >= 80 ? 'bg-brand-400' : pct >= 60 ? 'bg-amber-400' : 'bg-red-400'} rounded-full transition-all`} style={{ width: `${pct}%` }} />
                 </div>
               </div>
             ))}
@@ -104,41 +132,45 @@ export default function Dashboard() {
             <AlertTriangle className="w-4 h-4 text-gray-400" />
             <h2 className="text-sm font-semibold text-gray-900">Alertas ativos</h2>
           </div>
-          <div className="space-y-2.5">
-            {[...alertasVencidos, ...alertasAlerta].slice(0, 5).map(item => (
-              <div key={item.id} className="flex items-center gap-3">
-                <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.status === 'vencido' ? 'bg-red-500' : 'bg-amber-400'}`} />
-                <span className="text-sm text-gray-700 flex-1 truncate">{item.nome}</span>
-                <StatusBadge status={item.status} />
-              </div>
-            ))}
-            <button
-              onClick={() => navigate('/obrigacoes')}
-              className="text-xs text-brand-600 font-medium mt-1 hover:underline"
-            >
-              Ver todas as obrigações →
-            </button>
-          </div>
+          {alertas.length === 0 ? (
+            <div className="flex items-center gap-2 text-sm text-green-600 py-4">
+              <CheckCircle className="w-4 h-4" /> Todas as obrigações em dia!
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {alertas.map(item => (
+                <div key={item.id} className="flex items-center gap-3">
+                  <div className={`w-2 h-2 rounded-full flex-shrink-0 ${item.status === 'vencido' ? 'bg-red-500' : 'bg-amber-400'}`} />
+                  <span className="text-sm text-gray-700 flex-1 truncate">{item.nome}</span>
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${item.status === 'vencido' ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'}`}>
+                    {item.status === 'vencido' ? 'Vencido' : 'Alerta'}
+                  </span>
+                </div>
+              ))}
+              <button onClick={() => navigate('/obrigacoes')} className="text-xs text-brand-600 font-medium mt-1 hover:underline">
+                Ver todas as obrigações →
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Atividade recente */}
+      {/* Resumo rápido */}
       <div className="card p-5">
         <div className="flex items-center gap-2 mb-4">
-          <Clock className="w-4 h-4 text-gray-400" />
-          <h2 className="text-sm font-semibold text-gray-900">Atividade recente</h2>
+          <Users className="w-4 h-4 text-gray-400" />
+          <h2 className="text-sm font-semibold text-gray-900">Resumo da equipe</h2>
         </div>
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { icon: CheckCircle, color: 'text-green-500', msg: 'Ana Melo assinou ciência do POP "Esterilização em Autoclave"', data: 'Hoje, 09:14' },
-            { icon: FileText,    color: 'text-brand-500', msg: 'POP "Gestão de Resíduos" enviado para aprovação do RT',         data: 'Ontem, 16:30' },
-            { icon: AlertTriangle, color: 'text-red-500', msg: 'Controle biológico da autoclave vencido há 2 dias',            data: '27/05, 08:00' },
-            { icon: CheckCircle, color: 'text-green-500', msg: 'Documento "Alvará Sanitário 2024" adicionado ao cofre',        data: '25/05, 14:22' },
-          ].map(({ icon: Icon, color, msg, data }, i) => (
-            <div key={i} className="flex items-start gap-3">
-              <Icon className={`w-4 h-4 ${color} mt-0.5 flex-shrink-0`} />
-              <p className="text-sm text-gray-700 flex-1">{msg}</p>
-              <span className="text-xs text-gray-400 whitespace-nowrap">{data}</span>
+            { label: 'Colaboradores', value: colaboradores.length, color: 'text-gray-900' },
+            { label: 'Ciências assinadas', value: ciencias.filter(c => c.assinado).length, color: 'text-green-600' },
+            { label: 'Ciências pendentes', value: cienciasPend, color: cienciasPend > 0 ? 'text-red-600' : 'text-gray-900' },
+            { label: 'POPs enviados', value: [...new Set(ciencias.map(c => c.pop_id))].length, color: 'text-brand-600' },
+          ].map(({ label, value, color }) => (
+            <div key={label} className="bg-gray-50 rounded-lg p-3 text-center">
+              <p className={`text-xl font-bold ${color}`}>{value}</p>
+              <p className="text-xs text-gray-500 mt-0.5">{label}</p>
             </div>
           ))}
         </div>

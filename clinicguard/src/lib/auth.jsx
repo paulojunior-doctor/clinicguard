@@ -8,7 +8,7 @@ export function AuthProvider({ children }) {
   const login = (email, password) => {
     // Mock: qualquer email/senha válidos funcionam
     if (email && password.length >= 4) {
-      setUser({ email, nome: 'Dr. João Rocha', clinica: 'Odonto Central', role: 'rt' })
+      setUser({ email, nome: 'Dr. Paulo Vieira Junior', clinica: 'Buccal Odontologia', role: 'rt' })
       return true
     }
     return false
