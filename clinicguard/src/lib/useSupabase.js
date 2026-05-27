@@ -20,6 +20,171 @@ export function useClinicaId() {
   return localStorage.getItem(CLINICA_ID_KEY)
 }
 
+// ─── HELPER: somar meses a uma data string 'YYYY-MM-DD' ──────────────────────
+function somarMeses(dataStr, meses) {
+  const d = new Date(dataStr)
+  d.setMonth(d.getMonth() + meses)
+  return d.toISOString().slice(0, 10)
+}
+
+// ─── HELPER: somar anos a uma data string ────────────────────────────────────
+function somarAnos(dataStr, anos) {
+  const d = new Date(dataStr)
+  d.setFullYear(d.getFullYear() + anos)
+  return d.toISOString().slice(0, 10)
+}
+
+// ─── HELPER: subtrair dias de uma data string ────────────────────────────────
+function subtrairDias(dataStr, dias) {
+  const d = new Date(dataStr)
+  d.setDate(d.getDate() - dias)
+  return d.toISOString().slice(0, 10)
+}
+
+// ─── MAPEAMENTO: campos do Manual → obrigações ───────────────────────────────
+// origem: chave única para upsert (nunca duplica)
+// proxima_data: calculada a partir do campo
+export function gerarObrigacoesDoManual(dados) {
+  const obrigacoes = []
+
+  // Licença Sanitária — vence na data informada
+  if (dados.validade_licenca) {
+    obrigacoes.push({
+      origem: 'manual_licenca_sanitaria',
+      nome: 'Renovar Licença Sanitária (Alvará Sanitário)',
+      categoria: 'Licença',
+      periodicidade: 'Anual',
+      responsavel: dados.responsavel_tecnico || dados.responsavel_legal || '',
+      proxima_data: subtrairDias(dados.validade_licenca, 60), // avisar 60 dias antes
+      descricao: `Licença Sanitária vigente até ${new Date(dados.validade_licenca).toLocaleDateString('pt-BR')}. Iniciar processo de renovação com 60 dias de antecedência.`,
+    })
+  }
+
+  // Dedetização — próxima data informada diretamente
+  if (dados.proxima_dedetizacao) {
+    obrigacoes.push({
+      origem: 'manual_dedetizacao',
+      nome: 'Dedetização — Controle de Pragas',
+      categoria: 'Controle de Pragas',
+      periodicidade: 'Semestral',
+      responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
+      proxima_data: dados.proxima_dedetizacao,
+      descricao: `Empresa: ${dados.empresa_dedetizacao || '—'} | CESP: ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009).`,
+    })
+  } else if (dados.ultima_dedetizacao) {
+    // Calcular +6 meses da última
+    obrigacoes.push({
+      origem: 'manual_dedetizacao',
+      nome: 'Dedetização — Controle de Pragas',
+      categoria: 'Controle de Pragas',
+      periodicidade: 'Semestral',
+      responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
+      proxima_data: somarMeses(dados.ultima_dedetizacao, 6),
+      descricao: `Última dedetização: ${new Date(dados.ultima_dedetizacao).toLocaleDateString('pt-BR')}. Empresa: ${dados.empresa_dedetizacao || '—'} | CESP: ${dados.numero_cesp_pragas || '—'}.`,
+    })
+  }
+
+  // CESP de pragas — avisar 30 dias antes do vencimento
+  if (dados.validade_cesp_pragas) {
+    obrigacoes.push({
+      origem: 'manual_cesp_pragas',
+      nome: 'Renovar CESP — Controle de Pragas',
+      categoria: 'Controle de Pragas',
+      periodicidade: 'Semestral',
+      responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
+      proxima_data: subtrairDias(dados.validade_cesp_pragas, 30),
+      descricao: `CESP nº ${dados.numero_cesp_pragas || '—'} vence em ${new Date(dados.validade_cesp_pragas).toLocaleDateString('pt-BR')}. Solicitar renovação 30 dias antes.`,
+    })
+  }
+
+  // Limpeza da Caixa d'Água — próxima data ou +6 meses
+  if (dados.proxima_limpeza_reservatorio) {
+    obrigacoes.push({
+      origem: 'manual_limpeza_agua',
+      nome: 'Limpeza e Desinfecção da Caixa d\'Água',
+      categoria: 'Manutenção',
+      periodicidade: 'Semestral',
+      responsavel: dados.responsavel_agua || dados.responsavel_tecnico || '',
+      proxima_data: dados.proxima_limpeza_reservatorio,
+      descricao: `Limpeza semestral obrigatória (Portaria MS 888/2021). Responsável: ${dados.responsavel_agua || '—'}. Coletar amostra microbiológica após a limpeza.`,
+    })
+  } else if (dados.ultima_limpeza_reservatorio) {
+    obrigacoes.push({
+      origem: 'manual_limpeza_agua',
+      nome: 'Limpeza e Desinfecção da Caixa d\'Água',
+      categoria: 'Manutenção',
+      periodicidade: 'Semestral',
+      responsavel: dados.responsavel_agua || dados.responsavel_tecnico || '',
+      proxima_data: somarMeses(dados.ultima_limpeza_reservatorio, 6),
+      descricao: `Última limpeza: ${new Date(dados.ultima_limpeza_reservatorio).toLocaleDateString('pt-BR')}. Portaria MS 888/2021.`,
+    })
+  }
+
+  // Manutenção Autoclave — próxima data ou +6 meses
+  if (dados.proxima_manutencao) {
+    obrigacoes.push({
+      origem: 'manual_manutencao_autoclave',
+      nome: 'Manutenção Preventiva Autoclave',
+      categoria: 'Esterilização',
+      periodicidade: 'Semestral',
+      responsavel: dados.empresa_manutencao || 'Empresa Técnica',
+      proxima_data: dados.proxima_manutencao,
+      descricao: `Empresa de manutenção: ${dados.empresa_manutencao || '—'}. Manutenção semestral obrigatória (RDC 15/2012).`,
+    })
+  } else if (dados.ultima_manutencao_autoclave) {
+    obrigacoes.push({
+      origem: 'manual_manutencao_autoclave',
+      nome: 'Manutenção Preventiva Autoclave',
+      categoria: 'Esterilização',
+      periodicidade: 'Semestral',
+      responsavel: dados.empresa_manutencao || 'Empresa Técnica',
+      proxima_data: somarMeses(dados.ultima_manutencao_autoclave, 6),
+      descricao: `Última manutenção: ${new Date(dados.ultima_manutencao_autoclave).toLocaleDateString('pt-BR')}. Empresa: ${dados.empresa_manutencao || '—'}.`,
+    })
+  }
+
+  // Manutenção Climatizador — filtros mensais
+  if (dados.ultima_manutencao_ar) {
+    obrigacoes.push({
+      origem: 'manual_manutencao_ar',
+      nome: 'Limpeza de Filtros — Ar-Condicionado',
+      categoria: 'Manutenção',
+      periodicidade: 'Mensal',
+      responsavel: dados.empresa_manutencao || 'Auxiliar',
+      proxima_data: somarMeses(dados.ultima_manutencao_ar, 1),
+      descricao: `Limpeza mensal de filtros obrigatória (RE ANVISA 09/2003). Última: ${new Date(dados.ultima_manutencao_ar).toLocaleDateString('pt-BR')}.`,
+    })
+  }
+
+  // Levantamento Radiométrico — a cada 4 anos
+  if (dados.data_levantamento_radiometrico) {
+    obrigacoes.push({
+      origem: 'manual_radiometrico',
+      nome: 'Renovar Laudo Radiométrico',
+      categoria: 'Manutenção',
+      periodicidade: 'Anual',
+      responsavel: dados.supervisor_radiologico || dados.responsavel_tecnico || '',
+      proxima_data: subtrairDias(somarAnos(dados.data_levantamento_radiometrico, 4), 60),
+      descricao: `Levantamento radiométrico realizado em ${new Date(dados.data_levantamento_radiometrico).toLocaleDateString('pt-BR')}. Deve ser atualizado a cada 4 anos ou quando houver modificação do equipamento/área (Art. 141 — RDC 1.002/2025). Empresa: ${dados.empresa_radiometrico || '—'}.`,
+    })
+  }
+
+  // CESP de Resíduos — avisar 30 dias antes
+  if (dados.validade_cesp) {
+    obrigacoes.push({
+      origem: 'manual_cesp_residuos',
+      nome: 'Renovar CESP — Coleta de Resíduos',
+      categoria: 'Resíduos',
+      periodicidade: 'Semestral',
+      responsavel: dados.empresa_residuos || 'Empresa Coletora',
+      proxima_data: subtrairDias(dados.validade_cesp, 30),
+      descricao: `CESP da empresa ${dados.empresa_residuos || '—'} (CNPJ: ${dados.cnpj_empresa_residuos || '—'}) vence em ${new Date(dados.validade_cesp).toLocaleDateString('pt-BR')}. Solicitar renovação 30 dias antes.`,
+    })
+  }
+
+  return obrigacoes
+}
+
 // POPs
 export function usePOPs(clinicaId) {
   const [pops, setPops]       = useState([])
@@ -75,7 +240,6 @@ export function useColaboradores(clinicaId) {
 
   const criar = async (col) => {
     const avatar = col.nome.split(' ').slice(0,2).map(n => n[0]).join('').toUpperCase()
-    // Gerar senha simples: primeiras 3 letras do nome + 4 últimos dígitos do telefone (ou 1234)
     const senha = col.nome.split(' ')[0].toLowerCase().slice(0,3) + '1234'
     const { data } = await supabase
       .from('colaboradores')
@@ -115,16 +279,67 @@ export function useObrigacoes(clinicaId) {
     return data
   }
 
+  // ── NOVO: upsert por origem (usado pelo Manual) ────────────────────────────
+  // Usa a coluna `origem` como chave única para não duplicar
+  // Se já existe uma obrigação com aquela origem, apenas atualiza
+  const upsertPorOrigem = async (ob) => {
+    const { data } = await supabase
+      .from('obrigacoes')
+      .upsert(
+        { ...ob, clinica_id: clinicaId },
+        { onConflict: 'clinica_id,origem', ignoreDuplicates: false }
+      )
+      .select()
+      .single()
+    if (data) {
+      setObrigacoes(prev => {
+        const existe = prev.find(o => o.origem === ob.origem)
+        if (existe) return prev.map(o => o.origem === ob.origem ? data : o)
+        return [...prev, data]
+      })
+    }
+    return data
+  }
+
+  // ── NOVO: sincronizar todas as obrigações geradas pelo Manual ─────────────
+  const sincronizarDoManual = async (dadosManual) => {
+    const obrigacoesGeradas = gerarObrigacoesDoManual(dadosManual)
+    const resultados = await Promise.all(
+      obrigacoesGeradas.map(ob => upsertPorOrigem(ob))
+    )
+    return resultados.filter(Boolean)
+  }
+
   const registrar = async (id) => {
-    const proxima = new Date()
-    proxima.setMonth(proxima.getMonth() + 6)
+    const ob = obrigacoes.find(o => o.id === id)
+    // Calcular próxima data baseada na periodicidade
+    const proxima = calcularProximaData(ob?.periodicidade)
     const { data } = await supabase.from('obrigacoes')
-      .update({ status: 'ok', ultima_data: new Date().toISOString().slice(0,10), proxima_data: proxima.toISOString().slice(0,10) })
+      .update({
+        status: 'ok',
+        ultima_data: new Date().toISOString().slice(0, 10),
+        proxima_data: proxima
+      })
       .eq('id', id).select().single()
     if (data) setObrigacoes(prev => prev.map(o => o.id === id ? data : o))
   }
 
-  return { obrigacoes, loading, criar, registrar, refetch: fetch }
+  return { obrigacoes, loading, criar, registrar, upsertPorOrigem, sincronizarDoManual, refetch: fetch }
+}
+
+// ── HELPER: calcular próxima data por periodicidade ──────────────────────────
+function calcularProximaData(periodicidade) {
+  const hoje = new Date()
+  switch (periodicidade) {
+    case 'Semanal':      hoje.setDate(hoje.getDate() + 7);    break
+    case 'Quinzenal':    hoje.setDate(hoje.getDate() + 15);   break
+    case 'Mensal':       hoje.setMonth(hoje.getMonth() + 1);  break
+    case 'Trimestral':   hoje.setMonth(hoje.getMonth() + 3);  break
+    case 'Semestral':    hoje.setMonth(hoje.getMonth() + 6);  break
+    case 'Anual':        hoje.setFullYear(hoje.getFullYear() + 1); break
+    default:             hoje.setMonth(hoje.getMonth() + 6);  break
+  }
+  return hoje.toISOString().slice(0, 10)
 }
 
 // Documentos
