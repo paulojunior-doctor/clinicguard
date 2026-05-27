@@ -1,213 +1,193 @@
-import { useState } from 'react'
-import { Plus, Search, FileText, CheckCircle, Eye, Users, Trash2, Loader } from 'lucide-react'
-import { PageHeader, StatusBadge, Modal, EmptyState } from '@/components/ui'
-import { usePOPs, useColaboradores, useClinicaId } from '@/lib/useSupabase'
-import { formatDate } from '@/lib/mockData'
+import { useState } from "react";
 
-const categorias = ['Todas', 'Esterilização', 'Biossegurança', 'Resíduos', 'Higienização', 'Atendimento', 'Administrativo']
+const POPS_GERAL = [
+  { id:"POP-001", titulo:"Higienização das mãos", categoria:"Biossegurança", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 42/2010 | Portaria MS 2.616/1998 | OMS 2009", objetivo:"Estabelecer técnica correta de higienização das mãos para prevenção e controle de infecções relacionadas à assistência à saúde (IRAS).", abrangencia:"Todos os colaboradores com atividade assistencial ou de suporte direto ao paciente.", responsavel:"Responsável Técnico e todos os colaboradores.", passos:[{etapa:"Higienização simples (água e sabão)",duracao:"40 a 60 segundos",indicacao:"Mãos visivelmente sujas, após banheiro, antes e após refeições.",procedimento:["Molhar as mãos com água corrente.","Aplicar 3 a 5 mL de sabão líquido.","Ensaboar palmas, dorso, espaços interdigitais, polegares, pontas dos dedos e punhos por 15 seg.","Enxaguar completamente.","Secar com papel toalha descartável.","Fechar a torneira com o papel toalha."]},{etapa:"Higienização antisséptica (álcool 70%)",duracao:"20 a 30 segundos",indicacao:"Antes/após contato com paciente; antes de procedimentos; após remoção de luvas.",procedimento:["Aplicar 3 mL de preparação alcoólica na palma.","Friccionar palmas entre si.","Friccionar dorso de cada mão com a palma oposta.","Friccionar espaços interdigitais.","Friccionar articulações dos dedos.","Friccionar polegares com movimentos circulares.","Friccionar pontas dos dedos na palma oposta.","Aguardar secar completamente."]}], pontos_criticos:["Retirar anéis, pulseiras e relógio antes.","Unhas curtas, sem esmalte ou postiças.","Não usar álcool gel com mãos sujas.","Álcool gel 70% obrigatório em pontos estratégicos (RDC 42/2010)."], registros:"Manter dispensadores abastecidos e registrar reabastecimentos." },
+  { id:"POP-002", titulo:"Uso de Equipamentos de Proteção Individual (EPI)", categoria:"Biossegurança", revisao:"02", vigencia:"2024-01-01", base_legal:"NR-32 (MTE) | RDC 15/2012 | RDC 36/2008", objetivo:"Definir critérios de seleção, uso correto, remoção e descarte dos EPIs para proteção de colaboradores e pacientes.", abrangencia:"Todos os colaboradores que realizam atendimento direto ou manipulam materiais biológicos.", responsavel:"RT — seleção e provisão. Colaboradores — uso correto.", passos:[{etapa:"Seleção conforme risco",procedimento:["Luvas de procedimento: contato com pele não íntegra, mucosas, sangue.","Luvas estéreis: procedimentos invasivos.","Máscara cirúrgica: risco de respingo ou aerossóis.","Máscara N95/PFF2: procedimentos geradores de aerossóis.","Óculos de proteção: risco de respingo.","Avental: risco de contaminação do uniforme.","Gorro: procedimentos estéreis."]},{etapa:"Ordem de colocação",procedimento:["1. Higienizar mãos.","2. Colocar avental.","3. Colocar máscara e ajustar.","4. Colocar óculos.","5. Calçar as luvas por último."]},{etapa:"Ordem de remoção",procedimento:["1. Remover luvas (virando pelo avesso).","2. Higienizar mãos.","3. Remover avental (pela parte interna).","4. Higienizar mãos.","5. Remover óculos.","6. Remover máscara pelo elástico.","7. Higienizar mãos."]}], pontos_criticos:["Luvas NÃO substituem higienização das mãos.","Trocar luvas entre pacientes.","EPI danificado deve ser substituído imediatamente.","Nunca reutilizar EPIs de uso único."], registros:"Controle de estoque. Ficha de entrega de EPI por colaborador (NR-6)." },
+  { id:"POP-003", titulo:"Limpeza e desinfecção de superfícies e ambientes", categoria:"Biossegurança", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 50/2002 | RDC 222/2018 | Nota Técnica GGTES/ANVISA 05/2010", objetivo:"Padronizar procedimentos de limpeza e desinfecção de superfícies fixas, móveis e equipamentos.", abrangencia:"Todas as áreas do serviço de saúde.", responsavel:"Equipe de higienização supervisionada pelo RT.", passos:[{etapa:"Limpeza concorrente (diária)",procedimento:["Usar EPI: luvas, avental, botas.","Recolher resíduos antes de limpar.","Varredura úmida — NUNCA seca.","Limpeza com pano + detergente neutro, do menos ao mais sujo.","Enxaguar e secar.","Desinfetar com álcool 70% ou hipoclorito 0,5%.","Trocar água a cada sala."]},{etapa:"Limpeza terminal (semanal)",procedimento:["Desocupar completamente o ambiente.","Limpar em ordem: teto → paredes → móveis → piso.","Detergente enzimático em superfícies com matéria orgânica.","Registrar data e responsável."]},{etapa:"Desinfecção pós-atendimento",procedimento:["Álcool 70% em superfícies lisas.","Aguardar 30 seg de contato antes de secar.","Superfícies porosas: produto específico conforme fabricante."]}], pontos_criticos:["Nunca misturar hipoclorito com detergente.","Respeitar tempo de contato dos desinfetantes.","Manter ficha de limpeza afixada em cada sala.","Seguir fluxo limpo → sujo."], registros:"Ficha de controle de limpeza diária e terminal por ambiente." },
+  { id:"POP-004", titulo:"Esterilização e processamento de artigos", categoria:"Biossegurança", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 15/2012 | RDC 63/2011 | Nota Técnica GGTES 01/2012", objetivo:"Garantir processamento adequado de artigos conforme classificação de Spaulding.", abrangencia:"Profissionais que utilizam e processam artigos.", responsavel:"RT e profissional designado.", passos:[{etapa:"Classificação Spaulding",procedimento:["Críticos (tecidos estéreis): esterilização obrigatória.","Semicríticos (mucosas íntegras): esterilização ou desinfecção de alto nível.","Não críticos (pele íntegra): desinfecção intermediária ou baixa."]},{etapa:"Fluxo: DECONTAM → LIMPA → EMBALA → ESTERILIZA → ARMAZENA",procedimento:["1. Pré-limpeza: imersão em detergente enzimático por 10 min.","2. Limpeza com escova macia sob água corrente.","3. Enxague abundante.","4. Secagem completa.","5. Inspeção visual.","6. Embalagem em grau cirúrgico com indicador químico interno.","7. Identificação: nome, data e validade.","8. Autoclave: 134°C por 18 min.","9. Armazenamento: seco, ventilado, 20 cm do piso."]}], pontos_criticos:["Artigos úmidos não entram na autoclave.","Embalagem comprometida = artigo contaminado.","Indicador biológico semanal obrigatório.","Nunca reutilizar artigos de uso único."], registros:"Planilha de controle de esterilização (lote, data, operador, indicadores)." },
+  { id:"POP-005", titulo:"Gerenciamento de Resíduos de Serviços de Saúde (PGRSS)", categoria:"Biossegurança", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 222/2018 | Resolução CONAMA 358/2005", objetivo:"Garantir segregação, acondicionamento, transporte e disposição final dos resíduos de forma segura.", abrangencia:"Todos os colaboradores geradores de resíduos.", responsavel:"RT — PGRSS. Colaboradores — segregação no ponto de geração.", passos:[{etapa:"Classificação e segregação (RDC 222/2018)",procedimento:["Grupo A (biológico): saco BRANCO leitoso.","Grupo B (químico): recipiente LARANJA.","Grupo C (radioativo): símbolo de radioatividade.","Grupo D (comum): saco PRETO.","Grupo E (perfurocortante): caixa AMARELA rígida."]},{etapa:"Acondicionamento",procedimento:["Nunca comprimir sacos com as mãos.","Fechar quando atingir 2/3 da capacidade.","Caixa de perfurocortante: fechar na linha limite.","Transportar em carro exclusivo, sem misturar grupos."]},{etapa:"Destinação final",procedimento:["Grupo A: tratamento por autoclave ou incineração.","Grupo B: empresa especializada com licença.","Grupo D: coleta municipal.","Grupo E: empresa especializada.","Manter manifesto e certificado por 5 anos."]}], pontos_criticos:["NUNCA reencapar agulhas.","Perfurocortante somente em caixa amarela rígida.","PGRSS obrigatório para todo serviço de saúde."], registros:"Manifesto de transporte. Certificado de destinação. Planilha de geração mensal." },
+  { id:"POP-006", titulo:"Acidente com material biológico", categoria:"Biossegurança", revisao:"02", vigencia:"2024-01-01", base_legal:"NR-32 | Nota Técnica GGTES ANVISA 11/2015 | Protocolo MS", objetivo:"Estabelecer conduta imediata e encaminhamento após acidente com material biológico.", abrangencia:"Todos os colaboradores com risco de exposição.", responsavel:"Colaborador acidentado e RT.", passos:[{etapa:"Conduta imediata (primeiros minutos)",procedimento:["Pele com respingo: lavar com água e sabão por 15 min.","Mucosa ocular: irrigar com água ou SF 0,9% por 15 min.","Mucosa oral/nasal: lavar com água abundante.","Perfurocortante: lavar com água e sabão por 15 min. NÃO espremer, cortar ou sugar."]},{etapa:"Encaminhamento (primeiras 2 horas)",procedimento:["Notificar o RT imediatamente.","Encaminhar ao pronto-socorro.","PEP para HIV idealmente nas 2 primeiras horas (máximo 72h).","Coletar sorologia: HIV, HBV, HCV.","Identificar e coletar sorologia do paciente-fonte.","Preencher CAT nas primeiras 24 horas."]}], pontos_criticos:["PEP HIV: iniciar até 2h, máximo 72h.","Verificar vacinação anti-hepatite B do acidentado.","CAT obrigatório mesmo sem afastamento."], registros:"Ficha de notificação de acidente. CAT. Sorologia de acompanhamento (baseline, 3, 6 meses)." },
+  { id:"POP-007", titulo:"Precauções padrão e controle de infecção", categoria:"Controle de Infecção", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 36/2008 | Notas Técnicas ANVISA IRAS 2024 | Portaria MS 2.616/1998", objetivo:"Implementar precauções padrão aplicáveis a todos os pacientes para reduzir transmissão de microrganismos.", abrangencia:"Todos os profissionais com atividade assistencial.", responsavel:"RT e todos os colaboradores assistenciais.", passos:[{etapa:"Precauções padrão (todos os pacientes)",procedimento:["Higienização das mãos nos 5 momentos da OMS.","Luvas ao contato com sangue, fluidos ou pele não íntegra.","Máscara e proteção ocular em risco de respingo.","Avental em risco de contaminação.","Descarte seguro de perfurocortantes."]},{etapa:"Precauções por via de transmissão",procedimento:["Contato (MRSA, VRE): quarto individual; luvas e avental ao entrar.","Gotículas (gripe, COVID): máscara cirúrgica; quarto individual preferencial.","Aerossóis (tuberculose): máscara N95; pressão negativa.","Sinalizar quarto com tipo de precaução ativa."]}], pontos_criticos:["Precauções padrão OBRIGATÓRIAS para todos os pacientes.","5 momentos OMS: antes de tocar; antes de procedimento; após exposição; após tocar paciente; após superfícies."], registros:"Indicadores de IRAS. Registros de treinamento." },
+  { id:"POP-008", titulo:"Manutenção de equipamentos", categoria:"Infraestrutura", revisao:"01", vigencia:"2024-01-01", base_legal:"RDC 50/2002 | RDC 15/2012 | Manual do fabricante", objetivo:"Garantir funcionamento seguro dos equipamentos por meio de limpeza e manutenção preventiva.", abrangencia:"Todos os equipamentos assistenciais.", responsavel:"RT e empresa de manutenção.", passos:[{etapa:"Limpeza após uso",procedimento:["Desligar e desconectar da tomada.","Limpar superfícies com pano + álcool 70%.","Não aplicar líquido sobre teclados.","Aguardar secar antes de religar."]},{etapa:"Manutenção preventiva (cronograma anual)",procedimento:["Equipamentos críticos (autoclave): semestral.","Registrar data, empresa e serviços realizados.","Verificar certificado de calibração."]},{etapa:"Equipamento com falha",procedimento:["Sinalizar como INOPERANTE.","Registrar ocorrência e acionar empresa.","Não usar até liberação técnica."]}], pontos_criticos:["Manual do fabricante é a referência primária.","Autoclave exige testes biológicos regulares.","Nunca limpar equipamentos elétricos com mãos molhadas."], registros:"Ficha de manutenção por equipamento. Certificado de calibração." },
+  { id:"POP-009", titulo:"Controle de estoque e insumos", categoria:"Gestão", revisao:"01", vigencia:"2024-01-01", base_legal:"RDC 36/2008 | Boas práticas de armazenamento ANVISA", objetivo:"Garantir disponibilidade, rastreabilidade e armazenamento adequado de materiais e insumos.", abrangencia:"Responsáveis pelo almoxarifado.", responsavel:"RT e colaborador de estoque.", passos:[{etapa:"Armazenamento",procedimento:["Local limpo, seco, ventilado.","20 cm do piso, 50 cm do teto, 5 cm da parede.","PEPS: primeiro que entra, primeiro que sai.","Identificar: nome, lote, validade."]},{etapa:"Controle de validade",procedimento:["Revisar validades mensalmente.","Segregar vencidos e dar destinação adequada.","Alertar 60 dias antes do vencimento."]},{etapa:"Entrada e saída",procedimento:["Registrar entrada: fornecedor, NF, data, lote.","Registrar saída: data, quantidade, responsável.","Inventário mensal."]}], pontos_criticos:["Materiais vencidos NÃO devem ser utilizados.","Estoque mínimo para insumos críticos."], registros:"Planilha de estoque. Inventário mensal. Registros de entrada e saída." },
+  { id:"POP-010", titulo:"Atendimento e triagem de pacientes", categoria:"Assistencial", revisao:"01", vigencia:"2024-01-01", base_legal:"RDC 36/2013 | Resolução CFM 2.299/2021", objetivo:"Padronizar o fluxo de recepção e triagem garantindo segurança no atendimento.", abrangencia:"Profissionais da recepção e assistência.", responsavel:"RT e recepcionistas.", passos:[{etapa:"Recepção e identificação",procedimento:["Identificar com 2 dados: nome completo + data de nascimento.","Confirmar dados no sistema a cada consulta.","Orientar higienização das mãos na entrada.","Verificar sintomas respiratórios."]},{etapa:"Preenchimento de prontuário",procedimento:["Registrar queixa principal, histórico e medicações em uso.","Registrar alergias de forma destacada.","Coletar TCLE para procedimentos.","Manter prontuário atualizado."]}], pontos_criticos:["Identificação incorreta é a principal causa de erro em saúde.","TCLE obrigatório para procedimentos invasivos.","Dados do paciente são confidenciais (LGPD)."], registros:"Prontuário. TCLE assinado. Registro de triagem." },
+  { id:"POP-011", titulo:"Gestão de prontuários e confidencialidade", categoria:"Gestão", revisao:"01", vigencia:"2024-01-01", base_legal:"LGPD Lei 13.709/2018 | CFM 1.638/2002 | RDC 63/2011", objetivo:"Garantir organização, segurança e confidencialidade das informações de saúde dos pacientes.", abrangencia:"Todos com acesso a prontuários.", responsavel:"RT.", passos:[{etapa:"Organização e guarda",procedimento:["Físico: armário com chave, identificados.","Eletrônico: login individual, senha, log de acesso.","Guarda mínima: 20 anos após última consulta.","Menores: 5 anos após maioridade ou 20 anos da última consulta."]},{etapa:"Acesso e confidencialidade",procedimento:["Somente profissionais do cuidado acessam.","Paciente tem direito de acesso ao próprio prontuário.","Divulgar apenas com autorização escrita ou ordem judicial.","Não discutir dados em áreas comuns."]}], pontos_criticos:["Violação gera processo ético e legal.","Senhas nunca compartilhadas.","LGPD exige registro de incidentes de dados."], registros:"Log de acesso eletrônico. Termos de confidencialidade dos colaboradores." },
+  { id:"POP-012", titulo:"Conduta em emergências e urgências", categoria:"Emergência", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 36/2013 | CFM 1.451/1995 | Portaria MS 2.048/2002", objetivo:"Estabelecer fluxo de atendimento em situações de emergência clínica.", abrangencia:"Todos os colaboradores.", responsavel:"RT — plano. Profissional de saúde presente — condução.", passos:[{etapa:"Identificação e acionamento",procedimento:["Identificar a emergência.","Acionar SAMU 192 ou Bombeiros 193.","Designar colaborador para orientar a ambulância.","Não mover o paciente desnecessariamente."]},{etapa:"PCR — Suporte básico de vida",procedimento:["Verificar responsividade.","Acionar SAMU 192.","30 compressões a 100-120/min, 5-6 cm de profundidade.","Ventilar 2 vezes na relação 30:2 (se treinado).","Usar DEA assim que disponível.","Manter RCP até chegada do SAMU."]},{etapa:"Reação anafilática",procedimento:["Interromper o agente causador.","Deitar com pernas elevadas.","Adrenalina 0,3 mg IM lateral da coxa (se disponível).","Acionar SAMU imediatamente."]}], pontos_criticos:["DEA deve estar acessível.","Treinamento em RCP a cada 2 anos.","Telefones de emergência afixados em cada sala."], registros:"Ficha de ocorrência de emergência. Registros de treinamentos em RCP." },
+  { id:"POP-013", titulo:"Controle de qualidade da água", categoria:"Infraestrutura", revisao:"01", vigencia:"2024-01-01", base_legal:"Portaria MS 888/2021 | RDC 50/2002", objetivo:"Garantir qualidade da água por meio de controle do reservatório e análises periódicas.", abrangencia:"Responsável pela infraestrutura.", responsavel:"RT.", passos:[{etapa:"Limpeza do reservatório (semestral)",procedimento:["Esvaziar completamente.","Esfregar paredes e fundo.","Enxaguar abundantemente.","Aplicar hipoclorito 2,5% (2,5 mL/L) — aguardar 4h.","Enxaguar e encher.","Coletar amostra para análise microbiológica."]},{etapa:"Monitoramento",procedimento:["Cloro residual livre mensal (0,2–5 mg/L).","Análise microbiológica semestral.","Registrar todos os resultados."]}], pontos_criticos:["Água inadequada pode causar surtos.","Registros exigidos em inspeção sanitária.","Água para esterilização: destilada ou osmose reversa."], registros:"Planilha de limpeza e desinfecção. Laudos microbiológicos." },
+  { id:"POP-014", titulo:"Controle de pragas e vetores", categoria:"Infraestrutura", revisao:"01", vigencia:"2024-01-01", base_legal:"RDC 52/2009 | RE ANVISA 1303/2005", objetivo:"Prevenir e controlar a presença de pragas nas instalações.", abrangencia:"Todo o serviço.", responsavel:"RT e empresa dedetizadora.", passos:[{etapa:"Medidas preventivas",procedimento:["Janelas e portas com telas milimétricas.","Vedar frestas em paredes e tubulações.","Alimentos em recipientes fechados.","Ralos e caixas de gordura com tampa.","Eliminar água parada.","Lixeiras com tampa e coleta diária."]},{etapa:"Dedetização preventiva",procedimento:["Empresa com licença da VISA.","Frequência mínima semestral.","Exigir CESP.","Guardar CESP por 5 anos."]}], pontos_criticos:["Empresa deve ter Autorização de Funcionamento ANVISA.","Não aplicar produtos com pacientes presentes.","CESP obrigatório em vistoria sanitária."], registros:"CESP. Planilha de monitoramento de pragas." },
+  { id:"POP-015", titulo:"Manutenção do sistema de climatização", categoria:"Infraestrutura", revisao:"01", vigencia:"2024-01-01", base_legal:"RE ANVISA 09/2003 | RDC 50/2002 | ABNT NBR 16401", objetivo:"Garantir qualidade do ar por meio de manutenção correta dos sistemas de climatização.", abrangencia:"Ambientes com sistema de climatização.", responsavel:"RT e empresa de climatização.", passos:[{etapa:"Manutenção preventiva",procedimento:["Limpeza de filtros: mensal.","Bandeja de condensado: trimestral.","Verificação de vazamento de gás: anual.","Serpentinas: semestral.","Manutenção completa: anual."]},{etapa:"Monitoramento do ar",procedimento:["Avaliação microbiológica: anual (RE 09/2003).","Temperatura: 23°C ± 2°C.","Umidade: 60% ± 5%.","CO₂: < 1000 ppm."]}], pontos_criticos:["Filtros sujos são fonte de fungos.","Relatório guardado por 5 anos.","UTIs e salas cirúrgicas exigem filtro HEPA."], registros:"Relatório de manutenção. Laudo de qualidade do ar." },
+  { id:"POP-016", titulo:"Gestão de medicamentos e controlados", categoria:"Gestão", revisao:"01", vigencia:"2024-01-01", base_legal:"Portaria SVS/MS 344/1998 | RDC 44/2009 | Lei 5.991/1973", objetivo:"Controlar aquisição, armazenamento, dispensação e descarte de medicamentos.", abrangencia:"Serviços com estoque de medicamentos.", responsavel:"Farmacêutico ou RT habilitado.", passos:[{etapa:"Armazenamento",procedimento:["Controlados: armário chave dupla, separado.","Termolábeis: refrigerador 2–8°C, controle 2x/dia.","Fotossensíveis: frasco âmbar, protegido de luz."]},{etapa:"Dispensação e controle",procedimento:["Dispensar somente com prescrição assinada.","Registrar: paciente, medicamento, dose, lote, responsável.","Balanço de psicotrópicos: mensal.","Notificar VISA em caso de furto ou extravio."]}], pontos_criticos:["Portaria 344/1998 em revisão na Agenda ANVISA 2024-2025.","Vencidos: descarte como Resíduo Grupo B.","Dispensação sem prescrição é infração sanitária."], registros:"Livro de registro de controlados. Balanços periódicos. Receituários B1/B2." },
+  { id:"POP-017", titulo:"Segurança do paciente", categoria:"Segurança do Paciente", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 36/2013 | Portaria MS 529/2013 | Protocolo Nacional de Segurança", objetivo:"Implementar as 6 metas internacionais de segurança do paciente.", abrangencia:"Todos os colaboradores assistenciais.", responsavel:"RT e NSP quando exigido.", passos:[{etapa:"6 Metas de Segurança (OMS/ANVISA)",procedimento:["1. Identificar corretamente: 2 identificadores (nome + data de nascimento).","2. Comunicação eficaz: confirmar ordens verbais por escrito.","3. Medicamentos de alta vigilância: identificar e destacar.","4. Cirurgia segura: checklist cirúrgico.","5. Higienização das mãos: cumprir os 5 momentos.","6. Prevenir quedas: avaliação de risco e medidas preventivas."]},{etapa:"Notificação de eventos adversos",procedimento:["Notificar internamente todo incidente.","Near miss também deve ser notificado.","Notificar ao NOTIVISA eventos graves.","Analisar causa raiz e implementar melhoria."]}], pontos_criticos:["Cultura não punitiva — erro notificado sem medo.","RDC 36/2013 obriga NSP em serviços hospitalares."], registros:"Formulário de notificação de eventos. Plano de ação após análise." },
+  { id:"POP-018", titulo:"Treinamento e integração de colaboradores", categoria:"Gestão de Pessoas", revisao:"01", vigencia:"2024-01-01", base_legal:"NR-32 | RDC 36/2013 | Portaria MS 529/2013", objetivo:"Garantir treinamento adequado antes de iniciar atividades e de forma continuada.", abrangencia:"Todos, incluindo estagiários e terceirizados.", responsavel:"RT.", passos:[{etapa:"Integração (antes de iniciar atividades)",procedimento:["Apresentar o serviço e normas internas.","Treinamento obrigatório: POPs 001, 002, 005, 006 e 012.","Apresentar PGRSS e localização de materiais de emergência.","Verificar vacinação: Hepatite B, tríplice viral, dTpa, influenza.","Assinar termo de ciência dos POPs."]},{etapa:"Educação continuada",procedimento:["Treinamento anual em todos os POPs.","Treinamento em RCP a cada 2 anos.","Registrar presença e conteúdo.","Atualizar quando os POPs forem revisados."]}], pontos_criticos:["Colaborador sem treinamento não inicia atividades assistenciais.","Cartão de vacinação arquivado no prontuário.","Lista de presença assinada obrigatória."], registros:"Fichas de treinamento com conteúdo, data e assinaturas. Cartão de vacinação." },
+  { id:"POP-019", titulo:"Gestão documental e controle de versões", categoria:"Gestão", revisao:"01", vigencia:"2024-01-01", base_legal:"POP-O-SNVS-SSIS-001 ANVISA 2022 | ISO 9001:2015", objetivo:"Estabelecer critério de elaboração, revisão, aprovação e controle de versões dos documentos.", abrangencia:"Todos os documentos do sistema de qualidade.", responsavel:"RT.", passos:[{etapa:"Elaboração e aprovação",procedimento:["Identificar necessidade e designar elaborador.","Elaborar seguindo estrutura padrão.","Revisar com a equipe assistencial.","RT assina e aprova.","Atribuir número, revisão (iniciar em 00) e vigência."]},{etapa:"Distribuição e controle",procedimento:["Distribuir via sistema — versão digital é a oficial.","Colaboradores assinam ciência digital.","Versão anterior arquivada como obsoleta.","Atualizar lista mestra a cada revisão."]}], pontos_criticos:["Documentos obsoletos NÃO devem circular.","Ciência digital equivale à assinatura física.","POPs desatualizados geram inconformidade em inspeção."], registros:"Lista mestra. Histórico de revisões. Registros de ciência dos colaboradores." },
+  { id:"POP-020", titulo:"Resíduos perigosos e químicos", categoria:"Biossegurança", revisao:"01", vigencia:"2024-01-01", base_legal:"RDC 222/2018 | Resolução CONAMA 358/2005 | ABNT NBR 10004", objetivo:"Definir procedimentos para manuseio e descarte de resíduos químicos perigosos.", abrangencia:"Colaboradores que manipulam produtos químicos.", responsavel:"RT.", passos:[{etapa:"Identificação e segregação",procedimento:["Grupo B: medicamentos vencidos, reveladores, solventes, mercúrio.","Recipientes laranja com símbolo de risco químico.","Nunca misturar com resíduos biológicos ou comuns."]},{etapa:"Armazenamento temporário",procedimento:["Local ventilado, protegido de sol e chuva.","Sinalizado com símbolo de perigo.","FISPQ disponível no local."]},{etapa:"Destinação final",procedimento:["Empresa licenciada para resíduos perigosos.","Exigir manifesto de transporte e certificado.","Guardar documentação por 5 anos."]}], pontos_criticos:["Derramamento: EPI e material absorvente.","FISPQ acessível a todos.","Termômetros de mercúrio proibidos (RDC 145/2017)."], registros:"Manifesto de transporte. Certificado de destinação. Planilha de geração." },
+  { id:"POP-021", titulo:"Acessibilidade e atendimento humanizado", categoria:"Assistencial", revisao:"01", vigencia:"2024-01-01", base_legal:"Lei 13.146/2015 | RDC 50/2002 | ABNT NBR 9050:2020", objetivo:"Garantir acessibilidade e promover atendimento humanizado e sem discriminação.", abrangencia:"Todos os colaboradores e instalações.", responsavel:"RT e gestão do serviço.", passos:[{etapa:"Acessibilidade física",procedimento:["Rampa com inclinação máxima 8,33% e corrimão bilateral.","Banheiro adaptado com barras de apoio.","Corredor mínimo 1,20 m.","Sinalização em Braille e visual contrastante.","Vagas PcD sinalizadas próximas à entrada."]},{etapa:"Atendimento humanizado",procedimento:["Chamar pelo nome — nunca por número.","Garantir privacidade durante consulta.","Disponibilizar intérprete LIBRAS quando necessário.","Informar tempo de espera.","Tratar todos com equidade."]}], pontos_criticos:["Barreiras arquitetônicas infringem a Lei Brasileira de Inclusão.","Seguir Estatuto do Idoso para serviços que atendem idosos."], registros:"Registro de adaptações realizadas. Planilha de reclamações." },
+  { id:"POP-022", titulo:"Prevenção e controle de IRAS", categoria:"Controle de Infecção", revisao:"02", vigencia:"2024-01-01", base_legal:"RDC 36/2008 | RDC 63/2011 | Notas Técnicas ANVISA IRAS 2024", objetivo:"Implementar medidas sistêmicas para prevenção, vigilância e controle das infecções relacionadas à assistência à saúde.", abrangencia:"Todos os colaboradores e processos assistenciais.", responsavel:"RT e CCIH quando exigida.", passos:[{etapa:"Medidas de prevenção estruturadas",procedimento:["Precauções padrão em 100% dos atendimentos.","Higienização das mãos nos 5 momentos — monitorar adesão.","Esterilização correta de artigos.","Técnica asséptica em procedimentos invasivos.","Prescrição racional de antimicrobianos."]},{etapa:"Vigilância de IRAS",procedimento:["Monitorar e registrar infecções pós-procedimento.","Investigar surtos (2+ casos com relação epidemiológica).","Notificar surtos à VISA local e NOTIVISA.","Analisar dados mensalmente."]}], pontos_criticos:["IRAS são principal causa de morbi-mortalidade evitável.","CCIH obrigatória em serviços hospitalares.","Notas Técnicas ANVISA atualizadas anualmente."], registros:"Planilha de vigilância. Relatório mensal. Notificações NOTIVISA." }
+];
 
-const templatesProntos = [
-  { titulo: 'Esterilização em Autoclave',        categoria: 'Esterilização',  conteudo: 'Este POP estabelece os procedimentos para esterilização de materiais em autoclave conforme RDC 1.002/2025...' },
-  { titulo: 'Controle Biológico da Autoclave',   categoria: 'Esterilização',  conteudo: 'Procedimento para realização do controle biológico semanal da autoclave...' },
-  { titulo: 'Higienização das Mãos',             categoria: 'Biossegurança',  conteudo: 'Técnica de higienização das mãos conforme protocolo da ANVISA...' },
-  { titulo: 'Gestão de Resíduos de Saúde',       categoria: 'Resíduos',       conteudo: 'Procedimentos para segregação, acondicionamento e descarte de resíduos conforme PGRSS...' },
-  { titulo: 'Limpeza e Desinfecção de Superfícies', categoria: 'Higienização', conteudo: 'Protocolo de limpeza e desinfecção de superfícies do consultório...' },
-  { titulo: 'Descarte de Perfurocortantes',      categoria: 'Resíduos',       conteudo: 'Procedimentos para descarte seguro de materiais perfurocortantes...' },
-  { titulo: 'Uso e Descarte de EPIs',            categoria: 'Biossegurança',  conteudo: 'Normas para uso correto e descarte de equipamentos de proteção individual...' },
-  { titulo: 'Controle de Temperatura',           categoria: 'Biossegurança',  conteudo: 'Monitoramento e registro de temperatura de materiais e ambiente...' },
-]
+const POPS_ODO = [
+  { id:"POP-ODO-001", titulo:"Processamento de Dispositivos Médicos Odontológicos", categoria:"Biossegurança Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 43 a 107 | RDC 15/2012", objetivo:"Estabelecer fluxo completo de processamento de DM odontológicos com rastreabilidade em cada etapa: pré-limpeza, limpeza, embalagem, esterilização e armazenamento.", abrangencia:"Todos os profissionais que utilizam e processam instrumentais odontológicos.", responsavel:"RT (cirurgião-dentista) — supervisão. Profissional designado — execução.", passos:[{etapa:"Classificação dos DM (Art. 43)",procedimento:["Críticos (brocas, pontas diamantadas, instrumentais cirúrgicos, grampos de isolamento): ESTERILIZAÇÃO obrigatória.","Semicríticos (posicionadores radiográficos, moldeiras, fotopolimerizador): esterilização ou desinfecção de alto nível.","Não críticos (equipo, cuspideira, refletor): desinfecção intermediária/baixa.","Classificar também: complexos (canulados, fundo cego) vs. não complexos."]},{etapa:"Pré-limpeza imediata após cada paciente (Arts. 59-60)",procedimento:["Turbinas de alta rotação: acionar SEM BROCA por 20-30 seg para expelir detritos.","Remover resíduos com gaze úmida — NÃO imergir em detergente no ponto de assistência.","Transportar em recipiente rígido, fechado e identificado."]},{etapa:"Limpeza manual (Arts. 61-72)",procedimento:["EPI completo: luvas de borracha, avental, máscara, óculos.","Imergir em detergente enzimático regularizado na ANVISA — trocar a cada uso.","PROIBIDO detergente domiciliar ou pasta abrasiva.","DM canulados/complexos: complementar com cuba ultrassônica + pistola de água sob pressão.","Secar com ar comprimido medicinal ou material absorvente descartável.","Inspecionar com lentes intensificadoras mínimo 8x."]},{etapa:"Embalagem e identificação (Arts. 73-82)",procedimento:["Papel grau cirúrgico — PROIBIDO: caixas metálicas, papel kraft, papel jornal, plástico em ambos os lados.","Selar com termosseladora — livre de fissuras, rugas e furos.","PROIBIDO fechar com fita zebrada (indicador tipo 1).","Indicador químico externo (tipo 1) + indicador interno (tipo 5 ou 6).","Etiquetar na face plástica: data, responsável, número do lote, nome do DM.","Validade: 6 meses (sem validação científica própria)."]},{etapa:"Esterilização em autoclave (Arts. 84-93)",procedimento:["PROIBIDO estufas ou luz ultravioleta.","Organizar conforme fabricante — afastados das paredes.","Posição vertical: papel com papel, plástico com plástico. PROIBIDO empilhar horizontal.","Autoclave com bomba de vácuo: Teste Bowie & Dick no 1º ciclo do dia.","Registrar: data, lote, operador, indicadores, T°/pressão/tempo. Guardar 5 anos."]},{etapa:"Armazenamento (Art. 102)",procedimento:["Local exclusivo, seco, protegido de luz solar.","Longe de sifão de pias.","PROIBIDO usar DM com embalagem violada, suja, amassada ou molhada.","PEPS. Mínimo 20 cm do piso."]}], pontos_criticos:["PROIBIDO processar DM não regularizados na ANVISA, de uso único proibido, avariados ou oxidados (Art. 48).","Não processar durante atividades clínicas em consultório Classe I com bancada setorizada (Art. 44).","Terceirização: formalizar em contrato e manter bancada de pré-limpeza (Arts. 32 e 107)."], registros:"Planilha de controle de esterilização por lote. Rastreabilidade por pacote. Registros por 5 anos." },
+  { id:"POP-ODO-002", titulo:"Pré-limpeza de turbinas e instrumentais após atendimento", categoria:"Biossegurança Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 59 e 60", objetivo:"Padronizar a pré-limpeza imediata ao término de cada atendimento, evitando ressecamento de matéria orgânica e contaminação cruzada.", abrangencia:"Todos os profissionais que realizam assistência odontológica.", responsavel:"Cirurgião-dentista e auxiliar de saúde bucal treinado.", passos:[{etapa:"Turbinas de alta rotação — imediatamente após cada paciente (Art. 60)",indicacao:"Imediatamente ao término do atendimento — antes de qualquer outra etapa.",procedimento:["Acionar a turbina SEM BROCA por 20-30 seg para expelir água e detritos.","Limpar superfície externa com gaze umedecida.","Aplicar spray lubrificante específico conforme fabricante (quando indicado).","Encaminhar para área de processamento em recipiente identificado."]},{etapa:"Demais instrumentais (Art. 59)",procedimento:["Remover resíduos com gaze úmida ou enxágue com água corrente.","NÃO deixar instrumentais secar com matéria orgânica.","NÃO imergir em detergente no ponto de assistência.","Transportar em recipiente rígido, fechado e identificado.","Perfurocortantes: caixa amarela diretamente — NUNCA pré-limpar."]},{etapa:"Superfícies do equipo (após cada paciente)",procedimento:["Limpar seringa tríplice, terminais de peça de mão, sugador e refletor com pano descartável.","Aplicar álcool 70% em todas as superfícies tocadas.","Trocar barreiras plásticas descartáveis entre pacientes.","Encaminhar DM semicríticos para área de processamento."]}], pontos_criticos:["Turbina acionada com broca do paciente anterior = contaminação cruzada.","Matéria orgânica ressecada compromete a limpeza e a esterilização.","Pré-limpeza NÃO substitui o processamento completo."], registros:"Não requer registro individual. RT verifica cumprimento na supervisão rotineira." },
+  { id:"POP-ODO-003", titulo:"Monitoramento da esterilização — indicadores biológicos e químicos", categoria:"Biossegurança Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 88 a 92 | RDC 15/2012", objetivo:"Garantir a efetividade do processo de esterilização por meio de monitoramento sistemático em todos os ciclos.", abrangencia:"Profissional responsável pela operação da autoclave.", responsavel:"RT — supervisão e análise. Profissional designado — execução.", passos:[{etapa:"Teste Bowie & Dick — 1º ciclo do dia (Art. 88)",indicacao:"Somente autoclaves assistidas por bomba de vácuo.",procedimento:["Preparar pacote conforme fabricante e posicionar no ponto de menor circulação de calor.","Realizar ciclo vazio.","Verificar viragem uniforme do indicador.","Resultado insatisfatório: NÃO usar a autoclave — acionar assistência técnica.","Registrar resultado antes de iniciar os demais ciclos."]},{etapa:"Indicador biológico semanal (Art. 89)",indicacao:"No 1º ciclo de esterilização do dia, uma vez por semana.",procedimento:["Preparar pacote teste com embalagem DUPLA de papel grau cirúrgico.","Inserir: 1 indicador biológico (Geobacillus stearothermophilus) + 1 integrador químico tipo 5 ou 6.","Posicionar no ponto de menor circulação de calor.","Incubar conforme fabricante (24-48h a 56°C).","Resultado positivo: SUSPENDER uso, reprocessar todos os pacotes do período."]},{etapa:"Ciclos subsequentes (Art. 90)",procedimento:["Incluir pacote teste com integrador químico tipo 5 ou 6 em TODOS os ciclos.","Viragem inadequada: não liberar pacotes — investigar e reprocessar."]},{etapa:"Registro obrigatório por ciclo (Art. 91)",procedimento:["Registrar: data, número do lote (unívoco), identificação do equipamento, resultado do pacote teste, relação dos pacotes, nome do operador, parâmetros físicos (T°, pressão, tempo).","Guardar todos os registros por mínimo de 5 anos (Art. 92)."]}], pontos_criticos:["Resultado biológico positivo = reprocessar TODOS os pacotes do período.","Incubadoras: manutenção preventiva anual obrigatória (Art. 136).","Autoclaves > 60 L: seguir RDC 15/2012 (Art. 93).","Lote deve ser unívoco para rastreabilidade completa."], registros:"Planilha de monitoramento por ciclo. Laudos de incubação dos indicadores biológicos. Registros por 5 anos." },
+  { id:"POP-ODO-004", titulo:"Desinfecção química de dispositivos médicos semicríticos", categoria:"Biossegurança Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 50, 51, 54 a 56, 94 a 101", objetivo:"Padronizar a desinfecção química de DM semicríticos odontológicos, garantindo efetividade do processo e segurança do paciente.", abrangencia:"Profissionais que realizam processamento de DM semicríticos.", responsavel:"RT — supervisão. Profissional designado — execução.", passos:[{etapa:"Proibições absolutas (Arts. 54-56)",procedimento:["PROIBIDO: imersão em desinfetantes líquidos para fins de ESTERILIZAÇÃO.","PROIBIDO: saneantes à base de aldeídos (glutaraldeído, formaldeído) para TODOS os DM odontológicos.","PROIBIDO: desinfecção por imersão de tubete de medicamento anestésico.","Verificar instrução de uso do fabricante antes de iniciar."]},{etapa:"Monitorização do desinfetante antes de cada sessão (Art. 99)",procedimento:["Testar parâmetros de efetividade do fabricante (ex.: fita teste de concentração mínima).","Resultado fora do padrão: descartar e preparar nova solução.","Registrar resultado antes de iniciar."]},{etapa:"Desinfecção por imersão (Arts. 95-101)",procedimento:["Realizar APÓS limpeza completa e secagem do DM.","Usar recipiente exclusivo, rígido, liso, com fechamento estanque, identificado.","Garantir imersão COMPLETA na solução.","Respeitar tempo mínimo e máximo do fabricante.","Enxaguar com água potável. Secar completamente.","Se não usar imediatamente: embalar com data e responsável."]},{etapa:"Desinfecção por fricção (Art. 94)",indicacao:"DM não críticos e superfícies — bancada da área limpa.",procedimento:["Aplicar desinfetante regularizado na ANVISA com pano ou compressa.","Friccionar por tempo de contato conforme fabricante.","Aguardar secagem antes de armazenar."]}], pontos_criticos:["Desinfecção química NÃO substitui esterilização para DM críticos.","Glutaraldeído PROIBIDO desde a RDC 1.002/2025.","DM de assistência ventilatória: desinfecção em sala exclusiva por imersão (Art. 95).","Registros de parâmetros mantidos por 5 anos (Art. 99 §2º)."], registros:"Planilha de monitoramento do desinfetante (data, resultado, lote, operador). Registros por 5 anos." },
+  { id:"POP-ODO-005", titulo:"Gestão de resíduos odontológicos específicos", categoria:"Biossegurança Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 122 a 129 | RDC 222/2018 | CONAMA 358/2005", objetivo:"Estabelecer procedimentos para segregação e destinação de resíduos específicos da odontologia: radiológicos, amálgama/mercúrio, explantes e demais resíduos.", abrangencia:"Todos os colaboradores que geram ou manipulam resíduos odontológicos.", responsavel:"RT — PGRSS específico. Colaboradores — segregação no ponto de geração.", passos:[{etapa:"Resíduos radiológicos (Arts. 123-125)",procedimento:["Reveladores: empresa coletora licenciada OU neutralizar até pH 7-9 (verificar com fita teste) antes de lançar na rede.","Fixadores: recipiente rígido identificado — empresa de coleta especializada.","Componentes de película de RX: Resíduo Grupo B — recipiente rígido estanque."]},{etapa:"Amálgama e mercúrio (Art. 126)",procedimento:["Resíduos com mercúrio: recipiente rígido sob SELO D'ÁGUA, identificado.","Cápsulas de amálgama: estocar identificadas — empresa de recuperação química.","NUNCA lançar no lixo comum ou rede de esgoto.","Termômetros de mercúrio: PROIBIDOS — substituir por digitais."]},{etapa:"Explantes de DM (Art. 127)",procedimento:["Limpar e esterilizar o DM explantado antes do descarte.","DM desmontável: após esterilização, acondicionar impedindo remontagem.","Destinação ambientalmente adequada."]},{etapa:"Proibições de reutilização (Art. 128 parágrafo único)",procedimento:["PROIBIDO reaproveitar: tubetes anestésicos, seringas plásticas, agulhas.","Agulhas: diretamente na caixa amarela — NUNCA reencapar.","Tubetes vazios: lixo comum (Grupo D)."]}], pontos_criticos:["Amálgama = resíduo de mercúrio — descarte incorreto gera multa ambiental.","pH dos reveladores: verificar com fita antes de lançar na rede.","PGRSS específico para odontologia obrigatório (Art. 122)."], registros:"Manifesto de transporte. Certificado de destinação. Planilha mensal de geração. Registros por 5 anos." },
+  { id:"POP-ODO-006", titulo:"Proteção radiológica e uso de equipamento emissor de radiação ionizante", categoria:"Radiologia Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 138 a 154 | RDC 611/2022 | IN 94 e 95/2021", objetivo:"Estabelecer procedimentos de proteção radiológica para uso seguro de equipamentos emissores de radiação ionizante na assistência odontológica.", abrangencia:"Todos os profissionais que operam ou estão presentes durante exames radiológicos.", responsavel:"Supervisor de proteção radiológica formalmente designado (Art. 147). RT.", passos:[{etapa:"Cadastro e licenciamento (Arts. 139-140)",procedimento:["Cadastrar todos os equipamentos na VISA local com especificações técnicas.","Comunicar à VISA: aquisição, transferência, desativação.","Projeto de Blindagem aprovado para salas com emissores (exceto consultório individual com apenas intraoral — Art. 16).","PROIBIDO usar equipamento emissor nos boxes de Consultórios Coletivos (Art. 145)."]},{etapa:"Levantamento radiométrico (Art. 141)",procedimento:["Realizar na instalação do equipamento.","Atualizar a cada 4 anos ou após modificação da área ou especificações.","Apresentar relatório de aceitação e laudo radiométrico à VISA."]},{etapa:"Proteção do paciente (Art. 144)",procedimento:["Vestimenta plumbífera mínimo 0,25 mm Pb — 1 vestimenta por equipamento.","Proteger tronco, tireoide e gônadas.","Manter contato audiovisual com o paciente durante o disparo."]},{etapa:"Programa de Proteção Radiológica (Arts. 146-147)",procedimento:["Implementar Programa de Proteção Radiológica.","Designar formalmente supervisor + substituto por escrito.","Supervisor tem autoridade para interromper atividades inseguras."]}], pontos_criticos:["Equipamento sem cadastro = infração sanitária imediata.","Levantamento radiométrico vencido (> 4 anos) = irregularidade grave.","Supervisor de proteção radiológica deve ser designado por escrito.","Softwares de planejamento devem estar regularizados na ANVISA (Art. 155)."], registros:"Cadastro do equipamento na VISA. Laudo radiométrico atualizado. Designação formal do supervisor. Registros de manutenção." },
+  { id:"POP-ODO-007", titulo:"Sedação inalatória e endovenosa — atendimento e emergências", categoria:"Assistência Odontológica", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 36, 116, 117 e 118 | CFO — legislação vigente", objetivo:"Estabelecer procedimentos de monitoramento, segurança e conduta em emergências nos consultórios que realizam sedação inalatória ou endovenosa.", abrangencia:"Consultório Classe I com sedação inalatória, Classe II com sedação endovenosa e Centro Cirúrgico Odontológico.", responsavel:"Cirurgião-dentista habilitado para sedação. RT.", passos:[{etapa:"Verificação de equipamentos antes de iniciar (Art. 36)",procedimento:["Conferir: termômetro, esfigmomanômetro, estetoscópio, oxímetro de pulso, aspirador de vias aéreas, suporte para fluido EV.","Monitor multiparâmetros: funcional.","DEA acessível com eletrodos dentro da validade.","Carro/maleta de emergência: Ambu com máscara, sondas de aspiração, medicamentos emergenciais."]},{etapa:"Sedação inalatória — óxido nitroso (Art. 14 III)",procedimento:["Verificar cilindros fixados em carrinho (máximo 10 L) e sistema de exaustão.","Sistema de exaustão de gases anestésicos: OBRIGATÓRIO.","Monitorar SpO2 continuamente.","Manter paciente consciente com reflexos protetores.","Ao final: oxigênio 100% por mínimo 5 min antes da alta."]},{etapa:"Sedação endovenosa — Classe II (Art. 14 IV)",procedimento:["Confirmar área de recuperação pós-anestésica (mínimo 10 m² por leito).","Porta para maca de emergência: mínimo 1,10 m de vão livre.","Monitorar: SpO2, FC, PA, ECG.","Manter acesso venoso durante todo o procedimento.","Alta somente com recuperação completa + acompanhante."]},{etapa:"Condutas em emergências (Art. 116)",procedimento:["Depressão respiratória: interromper sedação, O2, estimular, SAMU 192.","Laringoespasmo: Heimlich, Ambu, SAMU.","PCR: RCP imediata + DEA + SAMU 192.","Anafilaxia: interromper agente, adrenalina 0,3 mg IM, SAMU.","Manter assistência ATÉ chegada da ambulância.","Registrar toda ocorrência em ficha de emergência."]}], pontos_criticos:["Sedação sem monitorização = risco imediato à vida.","Sistema de exaustão OBRIGATÓRIO para sedação inalatória.","NUNCA dispensar paciente pós-sedação sem acompanhante.","NSP obrigatório para serviços com 2 ou mais consultórios (Art. 117 §1º).","Notificar eventos adversos mensalmente ao NOTIVISA (Art. 120)."], registros:"Ficha de sedação (parâmetros, medicamentos, tempo). Ficha de emergência. Registro de alta com assinatura do acompanhante." },
+  { id:"POP-ODO-008", titulo:"Recepção e desinfecção de moldagens e modelos — laboratório de prótese", categoria:"Laboratório de Prótese Dentária", revisao:"00", vigencia:"2025-12-16", base_legal:"RDC 1.002/2025 — Arts. 175 a 178", objetivo:"Estabelecer protocolo de recepção, limpeza e desinfecção de moldagens, modelos e peças protéticas trocadas entre consultório e laboratório de prótese dentária.", abrangencia:"Cirurgião-dentista, auxiliar de saúde bucal e técnico em prótese dentária.", responsavel:"RT do consultório — envio. RT do laboratório (CD ou TPD) — recepção.", passos:[{etapa:"No consultório — antes de enviar ao laboratório (Art. 175 parágrafo único)",procedimento:["Enxaguar moldagem em água corrente após remoção da boca.","Desinfetar por imersão ou aspersão com desinfetante de nível intermediário regularizado na ANVISA.","Respeitar tempo de contato do fabricante. Enxaguar após.","Embalar identificado: nome do paciente, data, CD solicitante.","Preencher requisição de serviço completa."]},{etapa:"No laboratório — recepção (Art. 175)",procedimento:["Receber SOMENTE materiais com comprovação de desinfecção.","Registrar entrada: CD requisitante, paciente, serviço, data.","Material sem evidência de desinfecção: desinfetar antes de qualquer manipulação.","Manter arquivo exclusivo de todas as requisições."]},{etapa:"No laboratório — antes de retornar ao consultório (Art. 176)",procedimento:["Realizar limpeza e desinfecção da peça na área específica.","Área deve ter: pia, bancada, vaporizador, recipientes fechados resistentes ao desinfetante.","Embalar e identificar adequadamente.","Registrar saída: data, descrição da peça, materiais utilizados."]},{etapa:"EPIs obrigatórios no laboratório (Art. 178)",procedimento:["Usar EPI compatível: luvas, máscara, óculos, avental.","Registrar entrega de EPI a todos os colaboradores.","Trocar EPI ao manipular materiais de diferentes pacientes."]}], pontos_criticos:["Moldagem sem desinfecção = contaminação cruzada consultório ↔ laboratório.","Laboratório tem CORRESPONSABILIDADE pela biossegurança.","Vaporizador: obrigatório na área de desinfecção (Art. 176).","PROIBIDO equipamentos odontológicos clínicos no laboratório (Art. 171)."], registros:"Ficha de entrada/saída de serviços. Comprovante de desinfecção dos materiais recebidos. Registro de entrega de EPI." }
+];
+
+const COR = {"Biossegurança":"#dc2626","Controle de Infecção":"#7c3aed","Infraestrutura":"#0369a1","Gestão":"#0f766e","Assistencial":"#059669","Emergência":"#ea580c","Segurança do Paciente":"#b45309","Gestão de Pessoas":"#6d28d9","Biossegurança Odontológica":"#be123c","Radiologia Odontológica":"#4f46e5","Assistência Odontológica":"#0891b2","Laboratório de Prótese Dentária":"#7e22ce"};
+const CATS_G = ["Todas","Biossegurança","Controle de Infecção","Infraestrutura","Gestão","Assistencial","Emergência","Segurança do Paciente","Gestão de Pessoas"];
+const CATS_O = ["Todas","Biossegurança Odontológica","Radiologia Odontológica","Assistência Odontológica","Laboratório de Prótese Dentária"];
+
+function Modal({ pop, odo, onClose, onEnviar }) {
+  const [step, setStep] = useState(0);
+  const cor = COR[pop.categoria] || "#64748b";
+  return (
+    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,.65)",zIndex:1000,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"20px 16px",overflowY:"auto"}} onClick={onClose}>
+      <div style={{background:"#fff",borderRadius:18,width:"100%",maxWidth:740,boxShadow:"0 32px 64px rgba(0,0,0,.28)",overflow:"hidden"}} onClick={e=>e.stopPropagation()}>
+        <div style={{background:"#0f172a",padding:"22px 26px"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1,marginRight:14}}>
+              <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap",marginBottom:8}}>
+                <span style={{fontSize:11,color:"#94a3b8",fontWeight:700}}>{pop.id}</span>
+                {odo&&<span style={{fontSize:10,background:"#dc2626",color:"#fff",padding:"2px 8px",borderRadius:20,fontWeight:700}}>RDC 1.002/2025</span>}
+                <span style={{fontSize:11,background:cor+"35",color:"#e2e8f0",padding:"2px 9px",borderRadius:20}}>{pop.categoria}</span>
+                <span style={{fontSize:11,color:"#475569"}}>Rev.{pop.revisao}</span>
+              </div>
+              <h2 style={{margin:0,fontSize:18,fontWeight:700,color:"#f1f5f9",lineHeight:1.3}}>{pop.titulo}</h2>
+              <p style={{margin:"5px 0 0",fontSize:11,color:"#475569"}}>{pop.base_legal}</p>
+            </div>
+            <button onClick={onClose} style={{background:"none",border:"none",color:"#94a3b8",fontSize:22,cursor:"pointer",padding:"0 4px",lineHeight:1}}>✕</button>
+          </div>
+          <div style={{marginTop:14,background:"#1e293b",borderRadius:10,padding:"12px 16px"}}>
+            {step===0&&(
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,flexWrap:"wrap"}}>
+                <p style={{margin:0,fontSize:12,color:"#94a3b8"}}>📋 <strong style={{color:"#cbd5e1"}}>Modo RT</strong> — revise o conteúdo completo antes de enviar</p>
+                <button onClick={()=>setStep(1)} style={{padding:"7px 16px",borderRadius:8,border:"none",background:"#2563eb",color:"#fff",fontSize:12,fontWeight:600,cursor:"pointer",whiteSpace:"nowrap"}}>Enviar aos colaboradores →</button>
+              </div>
+            )}
+            {step===1&&(
+              <div>
+                <p style={{margin:"0 0 11px",fontSize:13,color:"#fbbf24",fontWeight:500}}>⚠️ Confirmar envio do <strong>{pop.id}</strong> para todos os colaboradores?</p>
+                <div style={{display:"flex",gap:8}}>
+                  <button onClick={()=>setStep(0)} style={{padding:"7px 14px",borderRadius:8,border:"1px solid #334155",background:"none",color:"#94a3b8",fontSize:12,cursor:"pointer"}}>Cancelar</button>
+                  <button onClick={()=>{onEnviar();onClose();}} style={{padding:"7px 20px",borderRadius:8,border:"none",background:"#16a34a",color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>✓ Confirmar e enviar</button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+        <div style={{padding:"24px 26px",maxHeight:"62vh",overflowY:"auto"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:22}}>
+            {[["Objetivo",pop.objetivo],["Abrangência",pop.abrangencia],["Responsável",pop.responsavel],["Vigência",new Date(pop.vigencia).toLocaleDateString("pt-BR")]].map(([l,v])=>(
+              <div key={l} style={{background:"#f8fafc",borderRadius:9,padding:"11px 13px",border:"1px solid #e2e8f0"}}>
+                <div style={{fontSize:10,fontWeight:700,color:"#64748b",textTransform:"uppercase",letterSpacing:".5px",marginBottom:4}}>{l}</div>
+                <div style={{fontSize:12,color:"#1e293b",lineHeight:1.55}}>{v}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{fontSize:11,fontWeight:700,color:"#0f172a",textTransform:"uppercase",letterSpacing:".5px",marginBottom:13}}>Principais Passos</div>
+          {pop.passos.map((p,i)=>(
+            <div key={i} style={{marginBottom:20,borderLeft:`3px solid ${odo?"#dc2626":"#0f172a"}`,paddingLeft:15}}>
+              <div style={{fontWeight:600,fontSize:13,color:"#0f172a",marginBottom:4}}>{i+1}. {p.etapa}</div>
+              {p.duracao&&<div style={{fontSize:11,color:"#2563eb",marginBottom:5}}>⏱ {p.duracao}</div>}
+              {p.indicacao&&<div style={{fontSize:11,color:"#7c3aed",marginBottom:6,fontStyle:"italic"}}>📌 {p.indicacao}</div>}
+              <ul style={{margin:0,paddingLeft:20}}>
+                {p.procedimento.map((item,j)=><li key={j} style={{fontSize:12,color:"#334155",lineHeight:1.75}}>{item}</li>)}
+              </ul>
+            </div>
+          ))}
+          <div style={{background:"#fff7ed",border:"1px solid #fed7aa",borderRadius:10,padding:"14px",marginTop:20}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#c2410c",textTransform:"uppercase",letterSpacing:".5px",marginBottom:8}}>⚠️ Pontos Críticos</div>
+            <ul style={{margin:0,paddingLeft:20}}>{pop.pontos_criticos.map((pc,i)=><li key={i} style={{fontSize:12,color:"#9a3412",lineHeight:1.75}}>{pc}</li>)}</ul>
+          </div>
+          <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:10,padding:"14px",marginTop:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:"#15803d",textTransform:"uppercase",letterSpacing:".5px",marginBottom:6}}>📁 Registros Necessários</div>
+            <p style={{margin:0,fontSize:12,color:"#166534",lineHeight:1.65}}>{pop.registros}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function POPs() {
-  const clinicaId = useClinicaId()
-  const { pops, loading, criar, aprovar, remover } = usePOPs(clinicaId)
-  const { colaboradores } = useColaboradores(clinicaId)
+  const [aba,setBusca_aba]=useState("geral");
+  const [catG,setCatG]=useState("Todas");
+  const [catO,setCatO]=useState("Todas");
+  const [busca,setBusca]=useState("");
+  const [modal,setModal]=useState(null);
+  const [enviados,setEnviados]=useState([]);
 
-  const [busca, setBusca]         = useState('')
-  const [filtroCategoria, setFiltroCategoria] = useState('Todas')
-  const [modalNovo, setModalNovo] = useState(false)
-  const [modalVer, setModalVer]   = useState(null)
-  const [salvando, setSalvando]   = useState(false)
-  const [novo, setNovo]           = useState({ titulo: '', categoria: 'Biossegurança', conteudo: '', validade: '' })
+  const odo=aba==="odontologia";
+  const fonte=odo?POPS_ODO:POPS_GERAL;
+  const cat=odo?catO:catG;
+  const setCat=odo?setCatO:setCatG;
+  const cats=odo?CATS_O:CATS_G;
 
-  const popsFiltrados = pops.filter(p => {
-    const buscaOk = p.titulo.toLowerCase().includes(busca.toLowerCase())
-    const catOk   = filtroCategoria === 'Todas' || p.categoria === filtroCategoria
-    return buscaOk && catOk
-  })
-
-  const criarPOP = async () => {
-    if (!novo.titulo.trim()) return
-    setSalvando(true)
-    await criar({ ...novo, versao: '1.0', status: 'revisao' })
-    setSalvando(false)
-    setModalNovo(false)
-    setNovo({ titulo: '', categoria: 'Biossegurança', conteudo: '', validade: '' })
-  }
-
-  const aprovarPOP = async (id) => {
-    await aprovar(id, 'RT')
-  }
+  const lista=fonte.filter(p=>{
+    const oc=cat==="Todas"||p.categoria===cat;
+    const ob=!busca||p.titulo.toLowerCase().includes(busca.toLowerCase())||p.id.toLowerCase().includes(busca.toLowerCase());
+    return oc&&ob;
+  });
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
-      <PageHeader
-        title="POPs"
-        subtitle="Procedimentos Operacionais Padrão da clínica"
-        action={
-          <button onClick={() => setModalNovo(true)} className="btn-primary flex items-center gap-2">
-            <Plus className="w-4 h-4" /> Novo POP
-          </button>
-        }
-      />
-
-      {/* Filtros */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
-        <div className="relative flex-1">
-          <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-          <input className="input pl-9" placeholder="Buscar POP..." value={busca} onChange={e => setBusca(e.target.value)} />
+    <div style={{fontFamily:"'IBM Plex Sans',system-ui,sans-serif",background:"#f1f5f9",minHeight:"100vh"}}>
+      <div style={{background:"#0f172a",padding:"18px 26px",display:"flex",justifyContent:"space-between",alignItems:"center",flexWrap:"wrap",gap:10}}>
+        <div>
+          <h1 style={{margin:0,fontSize:20,fontWeight:700,color:"#f1f5f9",letterSpacing:"-.3px"}}>Procedimentos Operacionais Padrão</h1>
+          <p style={{margin:"3px 0 0",fontSize:12,color:"#64748b"}}>{POPS_GERAL.length} gerais · {POPS_ODO.length} odontológicos · Base ANVISA 2024/2025</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          {categorias.map(c => (
-            <button key={c} onClick={() => setFiltroCategoria(c)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filtroCategoria === c ? 'bg-brand-600 text-white' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
-              {c}
-            </button>
+        <div style={{background:"#1e293b",borderRadius:8,padding:"6px 14px",fontSize:12,color:"#94a3b8"}}>{enviados.length} enviado{enviados.length!==1?"s":""}</div>
+      </div>
+
+      <div style={{background:"#0f172a",padding:"0 26px",display:"flex",borderTop:"1px solid #1e293b"}}>
+        {[{key:"geral",label:`Saúde Geral (${POPS_GERAL.length})`},{key:"odontologia",label:`Odontologia — RDC 1.002/2025 (${POPS_ODO.length})`}].map(a=>(
+          <button key={a.key} onClick={()=>{setBusca_aba(a.key);setBusca("");}} style={{padding:"11px 18px",border:"none",background:"none",cursor:"pointer",fontSize:13,fontWeight:600,color:aba===a.key?"#f1f5f9":"#64748b",borderBottom:aba===a.key?"2px solid #3b82f6":"2px solid transparent",transition:"color .15s"}}>{a.label}</button>
+        ))}
+      </div>
+
+      <div style={{background:"#fff",padding:"13px 26px",borderBottom:"1px solid #e2e8f0",display:"flex",gap:10,flexWrap:"wrap",alignItems:"center"}}>
+        <input value={busca} onChange={e=>setBusca(e.target.value)} placeholder="Buscar por título ou código..." style={{flex:"1 1 200px",maxWidth:280,padding:"7px 13px",border:"1.5px solid #e2e8f0",borderRadius:8,fontSize:13,outline:"none",background:"#f8fafc"}}/>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          {cats.map(c=>(
+            <button key={c} onClick={()=>setCat(c)} style={{padding:"5px 12px",borderRadius:20,fontSize:12,cursor:"pointer",border:"1.5px solid",borderColor:cat===c?"#0f172a":"#e2e8f0",background:cat===c?"#0f172a":"#fff",color:cat===c?"#fff":"#475569",fontWeight:cat===c?600:400}}>{c}</button>
           ))}
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
-        {[
-          { label: 'Total', value: pops.length, color: 'text-gray-900' },
-          { label: 'Ativos', value: pops.filter(p => p.status === 'ativo').length, color: 'text-green-600' },
-          { label: 'Aguardando aprovação', value: pops.filter(p => p.status === 'revisao').length, color: 'text-amber-600' },
-        ].map(({ label, value, color }) => (
-          <div key={label} className="card p-4 text-center">
-            <p className={`text-2xl font-bold ${color}`}>{value}</p>
-            <p className="text-xs text-gray-500 mt-0.5">{label}</p>
-          </div>
-        ))}
+      {odo&&<div style={{background:"#fef2f2",borderBottom:"1px solid #fecaca",padding:"9px 26px",fontSize:12,color:"#991b1b"}}>⚠️ <strong>RDC 1.002/2025</strong> — Prazo de adequação: <strong>16/12/2026</strong>. Implementação obrigatória para todos os serviços de assistência odontológica.</div>}
+
+      <div style={{padding:"20px 26px",display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(265px,1fr))",gap:14}}>
+        {lista.map(pop=>{
+          const cor=COR[pop.categoria]||"#64748b";
+          const env=enviados.includes(pop.id);
+          return (
+            <div key={pop.id} style={{background:"#fff",borderRadius:13,border:"1px solid #e2e8f0",padding:"17px 17px 13px",display:"flex",flexDirection:"column",gap:9,boxShadow:"0 1px 4px rgba(0,0,0,.05)",transition:"box-shadow .15s"}}
+              onMouseEnter={e=>e.currentTarget.style.boxShadow="0 6px 20px rgba(0,0,0,.1)"}
+              onMouseLeave={e=>e.currentTarget.style.boxShadow="0 1px 4px rgba(0,0,0,.05)"}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                <div style={{display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+                  <span style={{fontSize:11,fontWeight:700,color:"#94a3b8",letterSpacing:".4px"}}>{pop.id}</span>
+                  {odo&&<span style={{fontSize:10,background:"#fef2f2",color:"#dc2626",padding:"2px 7px",borderRadius:20,fontWeight:700}}>RDC 1.002</span>}
+                </div>
+                {env&&<span style={{fontSize:11,background:"#dcfce7",color:"#16a34a",padding:"2px 8px",borderRadius:20,fontWeight:600}}>✓</span>}
+              </div>
+              <h3 style={{margin:0,fontSize:14,fontWeight:600,color:"#0f172a",lineHeight:1.35}}>{pop.titulo}</h3>
+              <span style={{alignSelf:"flex-start",fontSize:11,padding:"3px 9px",borderRadius:20,fontWeight:500,background:cor+"18",color:cor}}>{pop.categoria}</span>
+              <p style={{margin:0,fontSize:12,color:"#64748b",lineHeight:1.55,flex:1}}>{pop.objetivo.slice(0,90)}…</p>
+              <div style={{display:"flex",gap:8,marginTop:4}}>
+                <button onClick={()=>setModal(pop)} style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:12,fontWeight:500,border:"1.5px solid #e2e8f0",background:"#fff",color:"#0f172a",cursor:"pointer"}}>Visualizar</button>
+                <button onClick={()=>setModal(pop)} style={{flex:1,padding:"7px 0",borderRadius:8,fontSize:12,fontWeight:600,border:"none",background:env?"#dcfce7":"#0f172a",color:env?"#16a34a":"#fff",cursor:"pointer"}}>{env?"Reenviar":"Enviar"}</button>
+              </div>
+            </div>
+          );
+        })}
+        {lista.length===0&&<div style={{gridColumn:"1/-1",textAlign:"center",padding:"48px 0",color:"#94a3b8",fontSize:14}}>Nenhum POP encontrado para os filtros selecionados.</div>}
       </div>
 
-      {/* Lista */}
-      <div className="card overflow-hidden">
-        {loading ? (
-          <div className="py-16 flex items-center justify-center gap-2 text-gray-400">
-            <Loader className="w-4 h-4 animate-spin" /> Carregando POPs...
-          </div>
-        ) : popsFiltrados.length === 0 ? (
-          <EmptyState
-            icon={FileText}
-            title={pops.length === 0 ? 'Nenhum POP cadastrado ainda' : 'Nenhum POP encontrado'}
-            desc={pops.length === 0 ? 'Crie seu primeiro POP usando um template ou do zero.' : 'Tente mudar o filtro ou a busca.'}
-            action={pops.length === 0 && <button onClick={() => setModalNovo(true)} className="btn-primary flex items-center gap-2"><Plus className="w-4 h-4" /> Criar primeiro POP</button>}
-          />
-        ) : (
-          <div className="divide-y divide-gray-50">
-            {popsFiltrados.map(pop => (
-              <div key={pop.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                <div className="w-9 h-9 rounded-lg bg-brand-50 flex items-center justify-center flex-shrink-0">
-                  <FileText className="w-4 h-4 text-brand-600" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">{pop.titulo}</p>
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-xs text-gray-400">{pop.categoria}</span>
-                    <span className="text-xs text-gray-300">·</span>
-                    <span className="text-xs text-gray-400">v{pop.versao}</span>
-                    {pop.validade && <><span className="text-xs text-gray-300">·</span><span className="text-xs text-gray-400">Validade: {formatDate(pop.validade)}</span></>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <StatusBadge status={pop.status} />
-                  {pop.status === 'revisao' && (
-                    <button onClick={() => aprovarPOP(pop.id)}
-                      className="flex items-center gap-1 text-xs text-green-700 bg-green-50 hover:bg-green-100 px-2 py-1 rounded-lg transition-colors">
-                      <CheckCircle className="w-3 h-3" /> Aprovar
-                    </button>
-                  )}
-                  <button onClick={() => setModalVer(pop)} className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                    <Eye className="w-4 h-4" />
-                  </button>
-                  <button onClick={() => remover(pop.id)} className="text-gray-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 transition-colors">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modal Novo POP */}
-      <Modal open={modalNovo} onClose={() => setModalNovo(false)} title="Novo Procedimento Operacional Padrão"
-        footer={<><button onClick={() => setModalNovo(false)} className="btn-secondary">Cancelar</button><button onClick={criarPOP} disabled={salvando} className="btn-primary flex items-center gap-2">{salvando ? <Loader className="w-4 h-4 animate-spin" /> : <><Plus className="w-4 h-4" /> Criar POP</>}</button></>}>
-        <div className="space-y-4">
-          <div>
-            <label className="label">Título do POP *</label>
-            <input className="input" placeholder="Ex: Esterilização em Autoclave" value={novo.titulo} onChange={e => setNovo({...novo, titulo: e.target.value})} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="label">Categoria</label>
-              <select className="input" value={novo.categoria} onChange={e => setNovo({...novo, categoria: e.target.value})}>
-                {categorias.filter(c => c !== 'Todas').map(c => <option key={c}>{c}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="label">Validade</label>
-              <input type="date" className="input" value={novo.validade} onChange={e => setNovo({...novo, validade: e.target.value})} />
-            </div>
-          </div>
-          <div>
-            <label className="label">Ou use um template pronto</label>
-            <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-              {templatesProntos.map(t => (
-                <button key={t.titulo} onClick={() => setNovo({...novo, titulo: t.titulo, categoria: t.categoria, conteudo: t.conteudo})}
-                  className={`text-left p-2.5 rounded-lg border text-xs transition-colors ${novo.titulo === t.titulo ? 'border-brand-400 bg-brand-50 text-brand-700' : 'border-gray-200 hover:border-brand-200 hover:bg-brand-50'}`}>
-                  <p className="font-medium">{t.titulo}</p>
-                  <p className="text-gray-400 mt-0.5">{t.categoria}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="label">Conteúdo do procedimento</label>
-            <textarea className="input h-32 resize-none" placeholder="Descreva os passos do procedimento..." value={novo.conteudo} onChange={e => setNovo({...novo, conteudo: e.target.value})} />
-          </div>
-        </div>
-      </Modal>
-
-      {/* Modal Ver POP */}
-      <Modal open={!!modalVer} onClose={() => setModalVer(null)} title={modalVer?.titulo || ''}
-        footer={<button onClick={() => setModalVer(null)} className="btn-secondary">Fechar</button>}>
-        {modalVer && (
-          <div className="space-y-3 text-sm">
-            <div className="grid grid-cols-2 gap-3">
-              {[
-                { label: 'Categoria', value: modalVer.categoria },
-                { label: 'Versão', value: `v${modalVer.versao}` },
-                { label: 'Status', value: <StatusBadge status={modalVer.status} /> },
-                { label: 'Validade', value: formatDate(modalVer.validade) },
-                { label: 'Aprovado por', value: modalVer.aprovado_por || '—' },
-                { label: 'Aprovado em', value: formatDate(modalVer.aprovado_em) },
-              ].map(({ label, value }) => (
-                <div key={label} className="bg-gray-50 rounded-lg p-3">
-                  <p className="text-xs text-gray-400">{label}</p>
-                  <p className="font-medium text-gray-900 mt-0.5">{value}</p>
-                </div>
-              ))}
-            </div>
-            {modalVer.conteudo && (
-              <div className="bg-gray-50 rounded-lg p-3">
-                <p className="text-xs text-gray-400 mb-1">Conteúdo</p>
-                <p className="text-sm text-gray-700 leading-relaxed">{modalVer.conteudo}</p>
-              </div>
-            )}
-          </div>
-        )}
-      </Modal>
+      {modal&&<Modal pop={modal} odo={odo} onClose={()=>setModal(null)} onEnviar={()=>setEnviados(p=>[...new Set([...p,modal.id])])}/>}
     </div>
-  )
+  );
 }
