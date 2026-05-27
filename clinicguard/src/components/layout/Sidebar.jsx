@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, FileText, GraduationCap, CheckSquare, Shield, FolderOpen, LogOut, ShieldAlert, Users, BookOpen } from 'lucide-react'
+import { LayoutDashboard, FileText, GraduationCap, CheckSquare, Shield, FolderOpen, LogOut, ShieldAlert, Users, BookOpen, Building2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 import clsx from 'clsx'
 
@@ -7,6 +7,7 @@ const nav = [
   { to: '/dashboard',     icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/pops',          icon: FileText,         label: 'POPs' },
   { to: '/manual',        icon: BookOpen,         label: 'Manual de Boas Práticas' },
+  { to: '/estrutura',     icon: Building2,        label: 'Estrutura do Serviço' },
   { to: '/colaboradores', icon: Users,            label: 'Colaboradores' },
   { to: '/treinamentos',  icon: GraduationCap,    label: 'Treinamentos' },
   { to: '/obrigacoes',    icon: CheckSquare,      label: 'Obrigações' },
