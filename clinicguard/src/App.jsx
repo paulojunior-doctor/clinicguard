@@ -16,6 +16,7 @@ import Documentos from '@/pages/Documentos'
 import Fiscalizacao from '@/pages/Fiscalizacao'
 import Assinar from '@/pages/Assinar'
 import Manual from '@/pages/Manual'
+import EstruturaSalas from '@/pages/EstruturaSalas'
 import TourGuiado from '@/components/ui/TourGuiado'
 
 function PrivateRoute({ children }) {
@@ -39,14 +40,15 @@ function AppRoutes() {
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
         <Route path="/assinar" element={<Assinar />} />
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
-          <Route path="dashboard"     element={<Dashboard />} />
-          <Route path="pops"          element={<POPs />} />
-          <Route path="colaboradores" element={<Colaboradores />} />
-          <Route path="treinamentos"  element={<Treinamentos />} />
-          <Route path="obrigacoes"    element={<Obrigacoes />} />
-          <Route path="documentos"    element={<Documentos />} />
-          <Route path="fiscalizacao"  element={<Fiscalizacao />} />
-          <Route path="manual"        element={<Manual />} />
+          <Route path="dashboard"        element={<Dashboard />} />
+          <Route path="pops"             element={<POPs />} />
+          <Route path="manual"           element={<Manual />} />
+          <Route path="estrutura"        element={<EstruturaSalas />} />
+          <Route path="colaboradores"    element={<Colaboradores />} />
+          <Route path="treinamentos"     element={<Treinamentos />} />
+          <Route path="obrigacoes"       element={<Obrigacoes />} />
+          <Route path="documentos"       element={<Documentos />} />
+          <Route path="fiscalizacao"     element={<Fiscalizacao />} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
