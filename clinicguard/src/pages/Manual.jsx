@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useObrigacoes, useClinicaId, gerarObrigacoesDoManual } from "@/lib/useSupabase";
 
 // ─── ESTADO INICIAL (campos em branco para o RT preencher) ───────────────────
 const ESTADO_INICIAL = {
@@ -465,17 +466,41 @@ export default function Manual() {
   const [secaoAtiva, setSecaoAtiva] = useState("apresentacao");
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState(false);
+  const [sincronizando, setSincronizando] = useState(false);
+  const [sincronizado, setSincronizado] = useState(false);
+  const clinicaId = useClinicaId();
+  const { sincronizarDoManual } = useObrigacoes(clinicaId);
 
   function onChange(campo, valor) {
     setDados(prev => ({ ...prev, [campo]: valor }));
     setSalvo(false);
   }
 
-  function salvar() {
+  async function salvar() {
     setSalvando(true);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(dados));
     localStorage.setItem(VERSOES_KEY, JSON.stringify(versoes));
     setTimeout(() => { setSalvando(false); setSalvo(true); setTimeout(() => setSalvo(false), 3000); }, 600);
+  }
+
+  async function sincronizarObrigacoes() {
+    setSincronizando(true);
+    try {
+      const geradas = gerarObrigacoesDoManual(dados);
+      if (geradas.length === 0) {
+        alert('Preencha pelo menos uma data no Manual para gerar obrigações automáticas.');
+        setSincronizando(false);
+        return;
+      }
+      const resultado = await sincronizarDoManual(dados);
+      setSincronizado(true);
+      setTimeout(() => setSincronizado(false), 4000);
+      alert(`✅ ${resultado.length} obrigação(ões) sincronizada(s) com sucesso na aba Obrigações!`);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao sincronizar. Verifique se está logado e tente novamente.');
+    }
+    setSincronizando(false);
   }
 
   function addVersao() {
@@ -537,6 +562,9 @@ export default function Manual() {
           </div>
           <button onClick={salvar} disabled={salvando} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: salvo ? "#16a34a" : "#2563eb", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             {salvando ? "Salvando..." : salvo ? "✓ Salvo" : "💾 Salvar"}
+          </button>
+          <button onClick={sincronizarObrigacoes} disabled={sincronizando} title="Gera ou atualiza automaticamente as obrigações na aba Obrigações com base nas datas preenchidas no Manual" style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: sincronizado ? "#16a34a" : "#7c3aed", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+            {sincronizando ? "Sincronizando..." : sincronizado ? "✓ Sincronizado" : "🔄 Gerar Obrigações"}
           </button>
           <button onClick={exportarPDF} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#475569", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
             ⬇ PDF
@@ -621,3 +649,5 @@ export default function Manual() {
     </div>
   );
 }
+
+
