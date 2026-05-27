@@ -15,6 +15,7 @@ import Obrigacoes from '@/pages/Obrigacoes'
 import Documentos from '@/pages/Documentos'
 import Fiscalizacao from '@/pages/Fiscalizacao'
 import Assinar from '@/pages/Assinar'
+import Manual from '@/pages/Manual'
 import TourGuiado from '@/components/ui/TourGuiado'
 
 function PrivateRoute({ children }) {
@@ -43,8 +44,9 @@ function AppRoutes() {
           <Route path="colaboradores" element={<Colaboradores />} />
           <Route path="treinamentos"  element={<Treinamentos />} />
           <Route path="obrigacoes"    element={<Obrigacoes />} />
-          <Route path="/documentos"    element={<Documentos />} />
+          <Route path="documentos"    element={<Documentos />} />
           <Route path="fiscalizacao"  element={<Fiscalizacao />} />
+          <Route path="manual"        element={<Manual />} />
         </Route>
         <Route path="*" element={<Navigate to="/" />} />
       </Routes>
