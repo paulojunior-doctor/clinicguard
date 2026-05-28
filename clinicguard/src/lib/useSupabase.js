@@ -335,15 +335,18 @@ export function useObrigacoes(clinicaId) {
     return resultados.filter(Boolean)
   }
 
-  const registrar = async (id) => {
+  const registrar = async (id, extras = {}) => {
     const ob = obrigacoes.find(o => o.id === id)
-    // Calcular próxima data baseada na periodicidade
     const proxima = calcularProximaData(ob?.periodicidade)
     const { data } = await supabase.from('obrigacoes')
       .update({
         status: 'ok',
-        ultima_data: new Date().toISOString().slice(0, 10),
-        proxima_data: proxima
+        ultima_data: extras.data_execucao || new Date().toISOString().slice(0, 10),
+        proxima_data: proxima,
+        executante:           extras.executante           || null,
+        observacoes_registro: extras.observacoes_registro || null,
+        comprovante_url:      extras.comprovante_url      || null,
+        comprovante_nome:     extras.comprovante_nome     || null,
       })
       .eq('id', id).select().single()
     if (data) setObrigacoes(prev => prev.map(o => o.id === id ? data : o))
