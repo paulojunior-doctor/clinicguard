@@ -486,19 +486,25 @@ export default function Manual() {
   async function sincronizarObrigacoes() {
     setSincronizando(true);
     try {
+      // Garantir que os dados mais recentes estão no localStorage
+      localStorage.setItem("clinicguard_manual_dados", JSON.stringify(dados));
+      
       const geradas = gerarObrigacoesDoManual(dados);
+      
       if (geradas.length === 0) {
-        alert('Preencha pelo menos uma data no Manual para gerar obrigações automáticas.');
+        alert("Preencha pelo menos uma data no Manual (ex: validade da licença, última dedetização, última manutenção da autoclave) para gerar obrigações automáticas.");
         setSincronizando(false);
         return;
       }
+      
       const resultado = await sincronizarDoManual(dados);
+      const qtd = resultado.filter(Boolean).length;
       setSincronizado(true);
       setTimeout(() => setSincronizado(false), 4000);
-      alert(`✅ ${resultado.length} obrigação(ões) sincronizada(s) com sucesso na aba Obrigações!`);
+      alert(`✅ ${qtd} obrigação(ões) criada(s)/atualizada(s) com sucesso na aba Obrigações!`);
     } catch (e) {
-      console.error(e);
-      alert('Erro ao sincronizar. Verifique se está logado e tente novamente.');
+      console.error("Erro sincronizar:", e);
+      alert("Erro ao sincronizar: " + (e.message || "Verifique se está logado e tente novamente."));
     }
     setSincronizando(false);
   }
@@ -649,5 +655,6 @@ export default function Manual() {
     </div>
   );
 }
+
 
 
