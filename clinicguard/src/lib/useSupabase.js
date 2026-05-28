@@ -280,17 +280,42 @@ export function useObrigacoes(clinicaId) {
   }
 
   // ── NOVO: upsert por origem (usado pelo Manual) ────────────────────────────
-  // Usa a coluna `origem` como chave única para não duplicar
-  // Se já existe uma obrigação com aquela origem, apenas atualiza
   const upsertPorOrigem = async (ob) => {
-    const { data } = await supabase
+    // Verificar se já existe obrigação com esta origem para esta clínica
+    const { data: existente } = await supabase
       .from('obrigacoes')
-      .upsert(
-        { ...ob, clinica_id: clinicaId },
-        { onConflict: 'clinica_id,origem', ignoreDuplicates: false }
-      )
-      .select()
+      .select('id')
+      .eq('clinica_id', clinicaId)
+      .eq('origem', ob.origem)
       .single()
+
+    let data
+    if (existente) {
+      // Atualizar existente
+      const { data: updated } = await supabase
+        .from('obrigacoes')
+        .update({
+          nome: ob.nome,
+          categoria: ob.categoria,
+          periodicidade: ob.periodicidade,
+          responsavel: ob.responsavel,
+          proxima_data: ob.proxima_data,
+          descricao: ob.descricao,
+        })
+        .eq('id', existente.id)
+        .select()
+        .single()
+      data = updated
+    } else {
+      // Criar novo
+      const { data: created } = await supabase
+        .from('obrigacoes')
+        .insert({ ...ob, clinica_id: clinicaId })
+        .select()
+        .single()
+      data = created
+    }
+
     if (data) {
       setObrigacoes(prev => {
         const existe = prev.find(o => o.origem === ob.origem)
@@ -405,3 +430,4 @@ export function useCiencias(clinicaId) {
 
   return { ciencias, loading, enviar, refetch: fetch }
 }
+
