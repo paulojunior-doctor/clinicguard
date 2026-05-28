@@ -56,7 +56,7 @@ export function gerarObrigacoesDoManual(dados) {
       periodicidade: 'Anual',
       responsavel: dados.responsavel_tecnico || dados.responsavel_legal || '',
       proxima_data: subtrairDias(dados.validade_licenca, 60), // avisar 60 dias antes
-      descricao: `Licença Sanitária vigente até ${new Date(dados.validade_licenca).toLocaleDateString('pt-BR')}. Iniciar processo de renovação com 60 dias de antecedência.`,
+      descricao: `Alvará Sanitário vigente até ${new Date(dados.validade_licenca).toLocaleDateString('pt-BR')}. ⚠️ A renovação deve ser solicitada com antecedência de 30 a 120 dias antes do término da validade — por isso este aviso foi gerado para 60 dias antes do vencimento.`,
     })
   }
 
@@ -69,7 +69,7 @@ export function gerarObrigacoesDoManual(dados) {
       periodicidade: 'Semestral',
       responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
       proxima_data: dados.proxima_dedetizacao,
-      descricao: `Empresa: ${dados.empresa_dedetizacao || '—'} | CESP: ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009).`,
+      descricao: `Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009). 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
     })
   } else if (dados.ultima_dedetizacao) {
     // Calcular +6 meses da última
@@ -80,7 +80,7 @@ export function gerarObrigacoesDoManual(dados) {
       periodicidade: 'Semestral',
       responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
       proxima_data: somarMeses(dados.ultima_dedetizacao, 6),
-      descricao: `Última dedetização: ${new Date(dados.ultima_dedetizacao).toLocaleDateString('pt-BR')}. Empresa: ${dados.empresa_dedetizacao || '—'} | CESP: ${dados.numero_cesp_pragas || '—'}.`,
+      descricao: `Última dedetização: ${new Date(dados.ultima_dedetizacao).toLocaleDateString('pt-BR')}. Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009). 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
     })
   }
 
