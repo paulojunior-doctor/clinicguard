@@ -2,9 +2,13 @@ import { useState, useRef } from 'react'
 import { Plus, AlertTriangle, CheckCircle, Clock, Upload, Loader, FileText, X, Eye } from 'lucide-react'
 import { PageHeader, StatusBadge, Modal, EmptyState } from '@/components/ui'
 import { useObrigacoes, useClinicaId } from '@/lib/useSupabase'
-import { supabase } from '@/lib/supabase'
+import { createClient } from '@supabase/supabase-js'
 
 const BUCKET = 'documentos'
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+)
 
 const categorias = ['Todas', 'Esterilização', 'Manutenção', 'Controle de Pragas', 'Licença', 'Medicina do Trabalho', 'Imunização', 'Resíduos']
 const periodicidades = ['Semanal', 'Quinzenal', 'Mensal', 'Trimestral', 'Semestral', 'Anual', 'Conforme esquema']
@@ -137,7 +141,7 @@ export default function Obrigacoes() {
       setUploadPct(10)
 
       const ext      = arquivo.name.split('.').pop()
-      const nomeArq  = `obrigacoes/${clinicaId}/${modalReg.id}_${Date.now()}.${ext}`
+      const nomeArq  = `${Date.now()}_comprovante_${modalReg.id}.${ext}`
 
       // Progresso simulado
       const interval = setInterval(() => {
