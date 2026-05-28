@@ -155,16 +155,28 @@ export default function Obrigacoes() {
             {filtradas.map(item => {
               const status = calcStatus(item.proxima_data)
               return (
-                <div key={item.id} className="flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <StatusIcon status={status} />
+                <div key={item.id} className="flex items-start gap-4 px-5 py-4 hover:bg-gray-50 transition-colors">
+                  <div className="mt-0.5 flex-shrink-0">
+                    <StatusIcon status={status} />
+                  </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-gray-900">{item.nome}</p>
                     <div className="flex items-center gap-3 mt-0.5 flex-wrap">
                       <span className="text-xs text-gray-400">{item.categoria}</span>
                       <span className="text-xs text-gray-300">·</span>
                       <span className="text-xs text-gray-400">{item.periodicidade}</span>
-                      {item.responsavel && <><span className="text-xs text-gray-300">·</span><span className="text-xs text-gray-400">Resp: {item.responsavel}</span></>}
+                      {item.responsavel && (
+                        <>
+                          <span className="text-xs text-gray-300">·</span>
+                          <span className="text-xs text-gray-400">Resp: {item.responsavel}</span>
+                        </>
+                      )}
                     </div>
+                    {item.descricao && (
+                      <p className="text-xs text-gray-500 mt-1.5 leading-relaxed max-w-2xl bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
+                        {item.descricao}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-xs text-gray-400">Próximo venc.</p>
@@ -197,7 +209,6 @@ export default function Obrigacoes() {
           </>
         }>
         <div className="space-y-4">
-          {/* Templates */}
           <div>
             <label className="label">Escolha um template ou preencha manualmente</label>
             <div className="grid grid-cols-1 gap-1.5 max-h-48 overflow-y-auto border border-gray-100 rounded-lg p-2">
@@ -260,6 +271,9 @@ export default function Obrigacoes() {
             <div className="bg-gray-50 rounded-lg p-3">
               <p className="text-xs text-gray-400">Obrigação</p>
               <p className="font-medium text-gray-900">{modalReg.nome}</p>
+              {modalReg.descricao && (
+                <p className="text-xs text-gray-500 mt-1 leading-relaxed">{modalReg.descricao}</p>
+              )}
             </div>
             <div>
               <label className="label">Data de execução</label>
