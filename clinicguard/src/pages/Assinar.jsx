@@ -5,66 +5,16 @@ import { supabase } from '@/lib/supabase'
 
 const NOTA_MINIMA = 70 // % mínimo para aprovação
 
-// ─── GERAR QUIZ VIA CLAUDE API ────────────────────────────────────────────────
+// ─── GERAR QUIZ VIA SERVERLESS ────────────────────────────────────────────────
 async function gerarQuiz(pop) {
-  const conteudo = `
-ID: ${pop.id || ''}
-Título: ${pop.titulo || ''}
-Categoria: ${pop.categoria || ''}
-Objetivo: ${pop.objetivo || ''}
-Passos: ${JSON.stringify(pop.passos || [])}
-Pontos críticos: ${JSON.stringify(pop.pontos_criticos || [])}
-  `.trim()
-
-  const prompt = `Você é um especialista em compliance sanitário. Com base neste POP (Procedimento Operacional Padrão), crie exatamente 4 perguntas de múltipla escolha para avaliar se o colaborador compreendeu o conteúdo.
-
-POP:
-${conteudo}
-
-Regras:
-- Cada pergunta deve ter 4 alternativas (A, B, C, D)
-- Apenas 1 alternativa correta por pergunta
-- As perguntas devem focar nos pontos mais críticos e obrigatórios do POP
-- Linguagem simples e direta
-- Inclua pelo menos 1 pergunta sobre o que é PROIBIDO ou o que NÃO deve ser feito
-
-Responda APENAS com JSON válido neste formato exato, sem texto adicional, sem markdown:
-{
-  "perguntas": [
-    {
-      "id": 1,
-      "texto": "texto da pergunta",
-      "alternativas": {
-        "A": "texto alternativa A",
-        "B": "texto alternativa B", 
-        "C": "texto alternativa C",
-        "D": "texto alternativa D"
-      },
-      "correta": "A"
-    }
-  ]
-}`
-
-  const apiKey = import.meta.env.VITE_ANTHROPIC_API_KEY
-  const response = await fetch('https://api.anthropic.com/v1/messages', {
+  const response = await fetch('/api/quiz', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'anthropic-dangerous-direct-browser-access': 'true',
-    },
-    body: JSON.stringify({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 1500,
-      messages: [{ role: 'user', content: prompt }]
-    })
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pop })
   })
 
-  const data = await response.json()
-  const texto = data.content?.[0]?.text || ''
-  const clean = texto.replace(/```json|```/g, '').trim()
-  return JSON.parse(clean)
+  if (!response.ok) throw new Error('Erro ao gerar quiz')
+  return await response.json()
 }
 
 // ─── COMPONENTE QUIZ ──────────────────────────────────────────────────────────
@@ -333,7 +283,7 @@ export default function Assinar() {
   const [geo, setGeo]             = useState(null)
   const [geoErro, setGeoErro]     = useState(false)
   const [erro, setErro]           = useState('')
-  const [quizDados, setQuizDados] = useState(null) // resultado do quiz
+  const [quizDados, setQuizDados] = useState(null)
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -389,7 +339,6 @@ export default function Assinar() {
     setStep('leitura')
   }
 
-  // Chamado quando colaborador aprova no quiz
   const onQuizAprovado = (dados) => {
     setQuizDados(dados)
     setStep('assinatura')
@@ -432,7 +381,6 @@ export default function Assinar() {
         longitude: geo?.lng || null,
         endereco_geo: endereco,
         nome_colaborador: colaborador.nome,
-        // ── dados do quiz ──
         quiz_perguntas: quizDados?.perguntas || null,
         quiz_respostas: quizDados?.respostas || null,
         quiz_nota: quizDados?.nota || null,
@@ -527,7 +475,6 @@ export default function Assinar() {
       </div>
       <div className="max-w-2xl mx-auto p-4">
         <div className="card p-4 mb-4">
-          {/* Mostrar conteúdo estruturado do POP */}
           {popAtual?.objetivo && (
             <div className="mb-3 p-3 bg-blue-50 rounded-lg">
               <p className="text-xs font-bold text-blue-700 uppercase mb-1">Objetivo</p>
@@ -554,7 +501,6 @@ export default function Assinar() {
               </ul>
             </div>
           )}
-          {/* Fallback para POPs com conteúdo em texto simples */}
           {popAtual?.conteudo && (
             <pre className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed font-sans">
               {popAtual.conteudo}
@@ -562,7 +508,6 @@ export default function Assinar() {
           )}
         </div>
 
-        {/* Aviso sobre quiz */}
         <div className="bg-purple-50 border border-purple-100 rounded-xl p-3 mb-4 flex items-start gap-2">
           <Brain className="w-4 h-4 text-purple-600 flex-shrink-0 mt-0.5" />
           <div>
@@ -602,7 +547,6 @@ export default function Assinar() {
       </div>
       <div className="max-w-2xl mx-auto p-4 space-y-4">
 
-        {/* Badge de aprovação no quiz */}
         {quizDados && (
           <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-center gap-3">
             <Trophy className="w-5 h-5 text-green-600 flex-shrink-0" />
