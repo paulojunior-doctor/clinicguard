@@ -1,20 +1,19 @@
 import { useState } from 'react'
-import { Send, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, Smartphone, MapPin, Loader, Users, FileText } from 'lucide-react'
+import { Send, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, MapPin, Loader, FileText, Brain, Trophy, XCircle } from 'lucide-react'
 import { PageHeader, Modal, EmptyState } from '@/components/ui'
 import { useCiencias, usePOPs, useColaboradores, useClinicaId } from '@/lib/useSupabase'
-import { formatDate } from '@/lib/mockData'
 
 export default function Treinamentos() {
-  const clinicaId    = useClinicaId()
+  const clinicaId             = useClinicaId()
   const { ciencias, loading, enviar } = useCiencias(clinicaId)
-  const { pops }     = usePOPs(clinicaId)
-  const { colaboradores } = useColaboradores(clinicaId)
+  const { pops }              = usePOPs(clinicaId)
+  const { colaboradores }     = useColaboradores(clinicaId)
 
-  const [expandido, setExpandido]   = useState(null)
+  const [expandido, setExpandido]     = useState(null)
   const [modalEnviar, setModalEnviar] = useState(false)
-  const [popSel, setPopSel]         = useState('')
-  const [colabSel, setColabSel]     = useState([])
-  const [enviando, setEnviando]     = useState(false)
+  const [popSel, setPopSel]           = useState('')
+  const [colabSel, setColabSel]       = useState([])
+  const [enviando, setEnviando]       = useState(false)
 
   const toggleColab = (id) =>
     setColabSel(s => s.includes(id) ? s.filter(x => x !== id) : [...s, id])
@@ -29,22 +28,26 @@ export default function Treinamentos() {
     setColabSel([])
   }
 
-  // Agrupar ciências por POP
   const porPOP = pops.map(pop => {
-    const items = ciencias.filter(c => c.pop_id === pop.id)
+    const items     = ciencias.filter(c => c.pop_id === pop.id)
     const assinadas = items.filter(c => c.assinado).length
-    return { pop, items, assinadas, total: items.length }
+    const aprovadas = items.filter(c => c.quiz_aprovado === true).length
+    const mediaNota = items.filter(c => c.quiz_nota != null).length > 0
+      ? Math.round(items.filter(c => c.quiz_nota != null).reduce((acc, c) => acc + c.quiz_nota, 0) / items.filter(c => c.quiz_nota != null).length)
+      : null
+    return { pop, items, assinadas, total: items.length, aprovadas, mediaNota }
   }).filter(g => g.items.length > 0)
 
   const totalCiencias  = ciencias.length
   const totalAssinadas = ciencias.filter(c => c.assinado).length
   const totalPendentes = ciencias.filter(c => !c.assinado).length
+  const totalAprovadas = ciencias.filter(c => c.quiz_aprovado === true).length
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
       <PageHeader
         title="Treinamentos e Ciências"
-        subtitle="Rastreabilidade de leitura e assinatura dos POPs"
+        subtitle="Rastreabilidade de leitura, quiz e assinatura dos POPs"
         action={
           <button onClick={() => setModalEnviar(true)} className="btn-primary flex items-center gap-2">
             <Send className="w-4 h-4" /> Enviar para ciência
@@ -53,7 +56,7 @@ export default function Treinamentos() {
       />
 
       {/* Resumo */}
-      <div className="grid grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-4 gap-3 mb-5">
         <div className="card p-4 text-center">
           <p className="text-2xl font-bold text-gray-900">{totalCiencias}</p>
           <p className="text-xs text-gray-500 mt-0.5">Total de ciências</p>
@@ -61,6 +64,10 @@ export default function Treinamentos() {
         <div className="card p-4 text-center">
           <p className="text-2xl font-bold text-green-600">{totalAssinadas}</p>
           <p className="text-xs text-gray-500 mt-0.5">Assinadas</p>
+        </div>
+        <div className="card p-4 text-center">
+          <p className="text-2xl font-bold text-purple-600">{totalAprovadas}</p>
+          <p className="text-xs text-gray-500 mt-0.5">Aprovadas no quiz</p>
         </div>
         <div className="card p-4 text-center">
           <p className="text-2xl font-bold text-red-600">{totalPendentes}</p>
@@ -85,7 +92,7 @@ export default function Treinamentos() {
         />
       ) : (
         <div className="space-y-3">
-          {porPOP.map(({ pop, items, assinadas, total }) => (
+          {porPOP.map(({ pop, items, assinadas, total, aprovadas, mediaNota }) => (
             <div key={pop.id} className="card overflow-hidden">
               <button
                 className="w-full flex items-center gap-4 px-5 py-4 hover:bg-gray-50 transition-colors text-left"
@@ -93,20 +100,32 @@ export default function Treinamentos() {
               >
                 <div className="flex-1">
                   <p className="text-sm font-medium text-gray-900">{pop.titulo}</p>
-                  <div className="flex items-center gap-3 mt-1.5">
-                    <div className="h-1.5 w-32 bg-gray-100 rounded-full overflow-hidden">
-                      <div className="h-full bg-brand-400 rounded-full" style={{ width: `${total > 0 ? (assinadas/total)*100 : 0}%` }} />
+                  <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                    {/* Barra assinatura */}
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-24 bg-gray-100 rounded-full overflow-hidden">
+                        <div className="h-full bg-brand-400 rounded-full" style={{ width: `${total > 0 ? (assinadas/total)*100 : 0}%` }} />
+                      </div>
+                      <span className="text-xs text-gray-500">{assinadas}/{total} assinados</span>
                     </div>
-                    <span className="text-xs text-gray-500">{assinadas}/{total} assinados</span>
+                    {/* Média quiz */}
+                    {mediaNota !== null && (
+                      <div className="flex items-center gap-1">
+                        <Brain className="w-3 h-3 text-purple-500" />
+                        <span className="text-xs text-purple-600 font-medium">Média quiz: {mediaNota}%</span>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <span className={`text-xs font-medium px-2 py-1 rounded-full ${
-                  assinadas === total ? 'bg-green-50 text-green-700' :
-                  assinadas === 0 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
-                }`}>
-                  {assinadas === total ? 'Completo' : assinadas === 0 ? 'Pendente' : 'Parcial'}
-                </span>
-                {expandido === pop.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                <div className="flex items-center gap-2">
+                  <span className={`text-xs font-medium px-2 py-1 rounded-full ${
+                    assinadas === total && total > 0 ? 'bg-green-50 text-green-700' :
+                    assinadas === 0 ? 'bg-red-50 text-red-700' : 'bg-amber-50 text-amber-700'
+                  }`}>
+                    {assinadas === total && total > 0 ? 'Completo' : assinadas === 0 ? 'Pendente' : 'Parcial'}
+                  </span>
+                  {expandido === pop.id ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                </div>
               </button>
 
               {expandido === pop.id && (
@@ -114,14 +133,15 @@ export default function Treinamentos() {
                   {items.map(ciencia => {
                     const col = colaboradores.find(c => c.id === ciencia.colaborador_id)
                     return (
-                      <div key={ciencia.id} className="flex items-start gap-4 px-5 py-3">
+                      <div key={ciencia.id} className="flex items-start gap-4 px-5 py-4">
                         <div className="w-8 h-8 rounded-full bg-brand-50 flex items-center justify-center text-xs font-semibold text-brand-600 flex-shrink-0 mt-0.5">
                           {col?.avatar || '?'}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900">{ciencia.nome_colaborador || col?.nome || 'Colaborador'}</p>
+
                           {ciencia.assinado ? (
-                            <div className="mt-1 space-y-0.5">
+                            <div className="mt-1 space-y-1">
                               <p className="text-xs text-gray-500 flex items-center gap-1">
                                 <CheckCircle className="w-3 h-3 text-green-500" />
                                 Assinado em {new Date(ciencia.data_assinatura).toLocaleString('pt-BR')}
@@ -138,6 +158,19 @@ export default function Treinamentos() {
                                   {ciencia.endereco_geo && ` · ${ciencia.endereco_geo.split(',').slice(0,2).join(',')}`}
                                 </p>
                               )}
+                              {/* Badge quiz */}
+                              {ciencia.quiz_nota != null && (
+                                <div className={`inline-flex items-center gap-1.5 mt-1 px-2.5 py-1 rounded-full text-xs font-medium ${
+                                  ciencia.quiz_aprovado ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'
+                                }`}>
+                                  {ciencia.quiz_aprovado
+                                    ? <Trophy className="w-3 h-3" />
+                                    : <XCircle className="w-3 h-3" />
+                                  }
+                                  Quiz: {ciencia.quiz_nota}%
+                                  {ciencia.quiz_tentativas > 1 && ` · ${ciencia.quiz_tentativas} tentativas`}
+                                </div>
+                              )}
                             </div>
                           ) : (
                             <p className="text-xs text-amber-600 mt-0.5 flex items-center gap-1">
@@ -145,10 +178,12 @@ export default function Treinamentos() {
                             </p>
                           )}
                         </div>
-                        {ciencia.assinado
-                          ? <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0 mt-0.5" />
-                          : <Clock className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" />
-                        }
+                        <div className="flex-shrink-0 mt-0.5">
+                          {ciencia.assinado
+                            ? <CheckCircle className="w-5 h-5 text-green-500" />
+                            : <Clock className="w-5 h-5 text-amber-400" />
+                          }
+                        </div>
                       </div>
                     )
                   })}
@@ -187,7 +222,7 @@ export default function Treinamentos() {
               <div className="space-y-2 max-h-60 overflow-y-auto">
                 <label className="flex items-center gap-2 text-xs text-brand-600 cursor-pointer mb-1">
                   <input type="checkbox"
-                    checked={colabSel.length === colaboradores.length}
+                    checked={colabSel.length === colaboradores.length && colaboradores.length > 0}
                     onChange={() => setColabSel(colabSel.length === colaboradores.length ? [] : colaboradores.map(c => c.id))}
                   /> Selecionar todos
                 </label>
@@ -204,8 +239,12 @@ export default function Treinamentos() {
               </div>
             )}
           </div>
-          <div className="bg-blue-50 rounded-lg p-3 text-xs text-blue-700">
-            Após enviar, vá em Colaboradores → clique em "Link" → envie por WhatsApp ou email para cada colaborador assinar.
+          <div className="bg-purple-50 rounded-lg p-3 text-xs text-purple-700 flex items-start gap-2">
+            <Brain className="w-4 h-4 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Quiz automático ativado</p>
+              <p className="mt-0.5">Após ler o POP, cada colaborador responderá 4 perguntas geradas por IA. Nota mínima para aprovação: 70%.</p>
+            </div>
           </div>
         </div>
       </Modal>
