@@ -9,21 +9,31 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true)
 
   const carregarPerfil = async (userId) => {
-    const { data } = await supabase
-      .from('perfis')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    setPerfil(data)
-    return data
+    try {
+      const { data } = await supabase
+        .from('perfis')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      setPerfil(data)
+      return data
+    } catch {
+      return null
+    }
   }
 
   useEffect(() => {
+    const timeout = setTimeout(() => setLoading(false), 3000)
+
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      clearTimeout(timeout)
       if (session?.user) {
         setUser(session.user)
         await carregarPerfil(session.user.id)
       }
+      setLoading(false)
+    }).catch(() => {
+      clearTimeout(timeout)
       setLoading(false)
     })
 
@@ -37,14 +47,21 @@ export function AuthProvider({ children }) {
       }
     })
 
-    return () => subscription.unsubscribe()
+    return () => {
+      clearTimeout(timeout)
+      subscription.unsubscribe()
+    }
   }, [])
 
   const login = async (email, password) => {
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) return false
-    await carregarPerfil(data.user.id)
-    return true
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) return false
+      await carregarPerfil(data.user.id)
+      return true
+    } catch {
+      return false
+    }
   }
 
   const logout = async () => {
