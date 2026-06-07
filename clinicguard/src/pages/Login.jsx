@@ -4,8 +4,8 @@ import { Shield, Eye, EyeOff, AlertCircle } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
 
 export default function Login() {
-  const [email, setEmail] = useState('paulo@buccalodonto.com.br')
-  const [senha, setSenha] = useState('123456')
+  const [email, setEmail] = useState('')
+  const [senha, setSenha] = useState('')
   const [mostrarSenha, setMostrarSenha] = useState(false)
   const [erro, setErro] = useState('')
   const [loading, setLoading] = useState(false)
@@ -16,8 +16,7 @@ export default function Login() {
     e.preventDefault()
     setErro('')
     setLoading(true)
-    await new Promise(r => setTimeout(r, 600))
-    const ok = login(email, senha)
+    const ok = await login(email, senha)
     setLoading(false)
     if (ok) navigate('/dashboard')
     else setErro('E-mail ou senha inválidos.')
@@ -26,7 +25,6 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-50 via-white to-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-600 mb-4 shadow-lg">
             <Shield className="w-7 h-7 text-white" />
@@ -35,7 +33,6 @@ export default function Login() {
           <p className="text-sm text-gray-500 mt-1">Compliance Sanitário para Clínicas</p>
         </div>
 
-        {/* Card */}
         <div className="card p-6">
           <h2 className="text-base font-semibold text-gray-900 mb-1">Entrar na plataforma</h2>
           <p className="text-xs text-gray-400 mb-5">Use as credenciais da sua clínica</p>
@@ -92,12 +89,6 @@ export default function Login() {
               )}
             </button>
           </form>
-
-          <div className="mt-4 p-3 bg-brand-50 rounded-lg">
-            <p className="text-xs text-brand-600 font-medium">Demo — acesso rápido:</p>
-            <p className="text-xs text-brand-600">Email: paulo@buccalodonto.com.br</p>
-            <p className="text-xs text-brand-600">Senha: 123456</p>
-          </div>
         </div>
 
         <p className="text-center text-xs text-gray-400 mt-6">
