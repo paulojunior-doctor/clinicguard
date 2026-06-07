@@ -17,6 +17,7 @@ import Fiscalizacao from '@/pages/Fiscalizacao'
 import Assinar from '@/pages/Assinar'
 import Manual from '@/pages/Manual'
 import EstruturaSalas from '@/pages/EstruturaSalas'
+import SuperAdmin from '@/pages/SuperAdmin'
 import TourGuiado from '@/components/ui/TourGuiado'
 
 function PrivateRoute({ children }) {
@@ -25,10 +26,19 @@ function PrivateRoute({ children }) {
 }
 
 function AppRoutes() {
-  const { user } = useAuth()
+  const { user, isSuperAdmin } = useAuth()
   const [tourAtivo, setTourAtivo] = useState(true)
   const [clinicaId, setClinicaId] = useState(localStorage.getItem(CLINICA_ID_KEY))
   const [popsSeeded, setPopsSeeded] = useState(localStorage.getItem('pops_seeded') === 'true')
+
+  if (user && isSuperAdmin) {
+    return (
+      <Routes>
+        <Route path="/superadmin" element={<SuperAdmin />} />
+        <Route path="*" element={<Navigate to="/superadmin" replace />} />
+      </Routes>
+    )
+  }
 
   if (user && !clinicaId) return <Setup onComplete={id => setClinicaId(id)} />
   if (user && clinicaId && !popsSeeded) return <SeedPOPs onComplete={() => { localStorage.setItem('pops_seeded','true'); setPopsSeeded(true) }} />
