@@ -5,6 +5,7 @@ import { CLINICA_ID_KEY } from '@/lib/useSupabase'
 import Layout from '@/components/layout/Layout'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
+import Cadastro from '@/pages/Cadastro'
 import Setup from '@/pages/Setup'
 import SeedPOPs from '@/pages/SeedPOPs'
 import Dashboard from '@/pages/Dashboard'
@@ -48,6 +49,7 @@ function AppRoutes() {
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={user ? <Navigate to="/dashboard" /> : <Login />} />
+        <Route path="/cadastro" element={user ? <Navigate to="/dashboard" /> : <Cadastro />} />
         <Route path="/assinar" element={<Assinar />} />
         <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
           <Route path="dashboard"        element={<Dashboard />} />
