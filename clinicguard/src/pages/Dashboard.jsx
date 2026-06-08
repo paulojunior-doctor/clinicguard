@@ -56,11 +56,17 @@ export default function Dashboard() {
 
   const scoreLabel = score >= 90 ? 'Excelente' : score >= 75 ? 'Bom' : score >= 60 ? 'Regular' : 'Crítico'
 
-  if (loading) return (
-    <div className="p-6 flex items-center justify-center min-h-96 gap-2 text-gray-400">
-      <Loader className="w-5 h-5 animate-spin" /> Carregando...
-    </div>
-  )
+ if (!clinicaId) return (
+  <div className="p-6 flex items-center justify-center min-h-96 gap-2 text-gray-400">
+    <Loader className="w-5 h-5 animate-spin" /> Carregando...
+  </div>
+)
+
+if (loading) return (
+  <div className="p-6 flex items-center justify-center min-h-96 gap-2 text-gray-400">
+    <Loader className="w-5 h-5 animate-spin" /> Carregando...
+  </div>
+)
 
   return (
     <div className="p-6 max-w-6xl mx-auto">
