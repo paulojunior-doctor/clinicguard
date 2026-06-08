@@ -26,12 +26,20 @@ export default function Landing() {
           </div>
           <span className="text-sm font-semibold text-gray-900">ClinicGuard</span>
         </div>
-        <button
-          onClick={() => navigate('/login')}
-          className="btn-primary flex items-center gap-2"
-        >
-          Acessar plataforma <ArrowRight className="w-3 h-3" />
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => navigate('/login')}
+            className="text-sm text-gray-500 hover:text-gray-700 transition-colors"
+          >
+            Já sou cadastrado
+          </button>
+          <button
+            onClick={() => navigate('/cadastro')}
+            className="btn-primary flex items-center gap-2"
+          >
+            Acessar plataforma <ArrowRight className="w-3 h-3" />
+          </button>
+        </div>
       </nav>
 
       {/* Hero */}
@@ -47,12 +55,17 @@ export default function Landing() {
         </p>
         <div className="flex items-center justify-center gap-4 flex-wrap">
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/cadastro')}
             className="flex items-center gap-2 bg-brand-600 hover:bg-brand-800 text-white font-semibold px-6 py-3 rounded-xl transition-colors shadow-sm text-sm"
           >
-            Ver demonstração gratuita <ArrowRight className="w-4 h-4" />
+            Criar conta gratuita <ArrowRight className="w-4 h-4" />
           </button>
-          <p className="text-sm text-gray-400">Sem cartão de crédito · Acesso imediato</p>
+          <button
+            onClick={() => navigate('/login')}
+            className="text-sm text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            Já tenho conta → Entrar
+          </button>
         </div>
       </section>
 
@@ -149,13 +162,19 @@ export default function Landing() {
       <section className="max-w-2xl mx-auto px-6 pb-16 text-center">
         <div className="bg-brand-600 rounded-2xl p-8">
           <h2 className="text-xl font-bold text-white mb-2">Pronto para ter sua clínica 100% segura?</h2>
-          <p className="text-white/70 text-sm mb-6">Acesse a demonstração agora e veja como funciona na prática</p>
+          <p className="text-white/70 text-sm mb-6">Crie sua conta agora e veja como funciona na prática</p>
           <button
-            onClick={() => navigate('/login')}
+            onClick={() => navigate('/cadastro')}
             className="bg-white text-brand-600 font-bold px-6 py-3 rounded-xl hover:bg-brand-50 transition-colors text-sm flex items-center gap-2 mx-auto"
           >
-            Acessar demonstração <ArrowRight className="w-4 h-4" />
+            Criar conta gratuita <ArrowRight className="w-4 h-4" />
           </button>
+          <p className="text-white/50 text-xs mt-3">
+            Já tem conta?{' '}
+            <button onClick={() => navigate('/login')} className="underline hover:text-white/80 transition-colors">
+              Entrar aqui
+            </button>
+          </p>
         </div>
       </section>
 
