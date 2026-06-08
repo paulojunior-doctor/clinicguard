@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { ShieldAlert, FileText, GraduationCap, CheckSquare, FolderOpen, TrendingUp, AlertTriangle, CheckCircle, Clock, Loader, Users } from 'lucide-react'
 import { ScoreRing } from '@/components/ui'
-import { usePOPs, useCiencias, useObrigacoes, useDocumentos, useColaboradores, useClinicaId } from '@/lib/useSupabase'
+import { usePOPs, useCiencias, useObrigacoes, useDocumentos, useColaboradores, useClinicaId, useClinica } from '@/lib/useSupabase'
 import { formatDate } from '@/lib/mockData'
 
 export default function Dashboard() {
   const navigate    = useNavigate()
   const clinicaId   = useClinicaId()
+  const clinica     = useClinica(clinicaId)
 
   const { pops,          loading: l1 } = usePOPs(clinicaId)
   const { ciencias,      loading: l2 } = useCiencias(clinicaId)
@@ -26,7 +27,6 @@ export default function Dashboard() {
   const calcScore = () => {
     if (pops.length === 0) return 0
     let score = 100
-    // Penalidades
     score -= obrigacoes.filter(o => o.status === 'vencido').length * 10
     score -= obrigacoes.filter(o => o.status === 'alerta').length * 3
     if (ciencias.length > 0) {
@@ -58,7 +58,7 @@ export default function Dashboard() {
 
   if (loading) return (
     <div className="p-6 flex items-center justify-center min-h-96 gap-2 text-gray-400">
-      <Loader className="w-5 h-5 animate-spin" /> Carregando dados da Buccal Odontologia...
+      <Loader className="w-5 h-5 animate-spin" /> Carregando...
     </div>
   )
 
@@ -67,7 +67,9 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Visão geral</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Buccal Odontologia · Responsável Técnico: Dr. Paulo Vieira Junior</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            {clinica?.nome} · Responsável Técnico: {clinica?.responsavel_tecnico}
+          </p>
         </div>
         <button onClick={() => navigate('/fiscalizacao')}
           className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors shadow-sm">
