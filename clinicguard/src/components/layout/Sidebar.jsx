@@ -1,6 +1,7 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 import { LayoutDashboard, FileText, GraduationCap, CheckSquare, Shield, FolderOpen, LogOut, ShieldAlert, Users, BookOpen, Building2 } from 'lucide-react'
 import { useAuth } from '@/lib/auth'
+import { useClinicaId, useClinica } from '@/lib/useSupabase'
 import clsx from 'clsx'
 
 const nav = [
@@ -18,6 +19,13 @@ const nav = [
 export default function Sidebar() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+  const clinicaId = useClinicaId()
+  const clinica = useClinica(clinicaId)
+
+  const nomeClinica = clinica?.nome || '...'
+  const iniciais = nomeClinica !== '...'
+    ? nomeClinica.split(' ').slice(0, 2).map(n => n[0]).join('').toUpperCase()
+    : '?'
 
   return (
     <aside className="w-56 bg-white border-r border-gray-100 flex flex-col h-screen sticky top-0 flex-shrink-0">
@@ -51,9 +59,11 @@ export default function Sidebar() {
 
       <div className="px-3 py-3 border-t border-gray-100">
         <div className="flex items-center gap-2.5 p-2 rounded-lg bg-gray-50 mb-2">
-          <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0">PV</div>
+          <div className="w-7 h-7 rounded-full bg-brand-600 flex items-center justify-center text-[10px] font-semibold text-white flex-shrink-0">
+            {iniciais}
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs font-medium text-gray-900 truncate">{user?.clinica || 'Buccal Odontologia'}</p>
+            <p className="text-xs font-medium text-gray-900 truncate">{nomeClinica}</p>
             <p className="text-[10px] text-gray-400">Plano Profissional</p>
           </div>
         </div>
