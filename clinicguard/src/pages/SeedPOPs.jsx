@@ -1,24 +1,62 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Shield, CheckCircle, Loader, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { popsBuccal } from '@/lib/popsBuccal'
 import { CLINICA_ID_KEY } from '@/lib/useSupabase'
 
 export default function SeedPOPs({ onComplete }) {
-  const [status, setStatus] = useState('idle') // idle | loading | done | error
+  const [status, setStatus] = useState('idle')
   const [progresso, setProgresso] = useState(0)
   const [total] = useState(popsBuccal.length)
+  const [clinicaId, setClinicaId] = useState(null)
+  const [nomeClinica, setNomeClinica] = useState('sua clínica')
+  const [nomeRT, setNomeRT] = useState('o Responsável Técnico')
+
+  useEffect(() => {
+    const carregarClinica = async () => {
+      // Primeiro tenta localStorage
+      let id = localStorage.getItem(CLINICA_ID_KEY)
+
+      // Se não tiver, busca do perfil autenticado
+      if (!id) {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (user) {
+          const { data: perfil } = await supabase
+            .from('perfis')
+            .select('clinica_id')
+            .eq('id', user.id)
+            .single()
+          if (perfil?.clinica_id) {
+            id = perfil.clinica_id
+            localStorage.setItem(CLINICA_ID_KEY, id)
+          }
+        }
+      }
+
+      if (id) {
+        setClinicaId(id)
+        const { data: clinica } = await supabase
+          .from('clinicas')
+          .select('nome, responsavel_tecnico')
+          .eq('id', id)
+          .single()
+        if (clinica) {
+          setNomeClinica(clinica.nome)
+          setNomeRT(clinica.responsavel_tecnico)
+        }
+      }
+    }
+    carregarClinica()
+  }, [])
 
   const inserirPOPs = async () => {
-    const clinicaId = localStorage.getItem(CLINICA_ID_KEY)
     if (!clinicaId) {
-      alert('Configure sua clínica primeiro.')
+      alert('Clínica não encontrada. Faça login novamente.')
       return
     }
 
     setStatus('loading')
 
-    // Verificar se já existem POPs
     const { data: existentes } = await supabase
       .from('pops')
       .select('id')
@@ -38,7 +76,7 @@ export default function SeedPOPs({ onComplete }) {
         .insert({
           ...pop,
           clinica_id: clinicaId,
-          aprovado_por: 'Dr. Paulo Vieira Junior',
+          aprovado_por: nomeRT,
           aprovado_em: new Date().toISOString(),
         })
 
@@ -46,7 +84,6 @@ export default function SeedPOPs({ onComplete }) {
         count++
         setProgresso(count)
       }
-      // Pequena pausa para não sobrecarregar a API
       await new Promise(r => setTimeout(r, 100))
     }
 
@@ -63,7 +100,7 @@ export default function SeedPOPs({ onComplete }) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-600 mb-4 shadow-lg">
             <FileText className="w-7 h-7 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">POPs da Buccal Odontologia</h1>
+          <h1 className="text-2xl font-bold text-gray-900">POPs da {nomeClinica}</h1>
           <p className="text-sm text-gray-500 mt-1">22 procedimentos completos prontos para uso</p>
         </div>
 
@@ -71,7 +108,7 @@ export default function SeedPOPs({ onComplete }) {
           {status === 'idle' && (
             <>
               <p className="text-sm text-gray-600 mb-4 leading-relaxed">
-                Vamos inserir automaticamente os <strong>22 POPs obrigatórios</strong> para clínica odontológica conforme a <strong>RDC 1.002/2025</strong> da ANVISA, já com o nome da Buccal Odontologia e Dr. Paulo Vieira Junior como RT.
+                Vamos inserir automaticamente os <strong>22 POPs obrigatórios</strong> para clínica odontológica conforme a <strong>RDC 1.002/2025</strong> da ANVISA, já com o nome da {nomeClinica} e {nomeRT} como RT.
               </p>
               <div className="bg-brand-50 rounded-lg p-3 mb-4 text-xs text-brand-700 space-y-1">
                 <p>✓ Biossegurança (4 POPs)</p>
