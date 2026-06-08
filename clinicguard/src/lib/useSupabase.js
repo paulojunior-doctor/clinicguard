@@ -74,12 +74,9 @@ function subtrairDias(dataStr, dias) {
 }
 
 // ─── MAPEAMENTO: campos do Manual → obrigações ───────────────────────────────
-// origem: chave única para upsert (nunca duplica)
-// proxima_data: calculada a partir do campo
 export function gerarObrigacoesDoManual(dados) {
   const obrigacoes = []
 
-  // Licença Sanitária — vence na data informada
   if (dados.validade_licenca) {
     obrigacoes.push({
       origem: 'manual_licenca_sanitaria',
@@ -87,12 +84,11 @@ export function gerarObrigacoesDoManual(dados) {
       categoria: 'Licença',
       periodicidade: 'Anual',
       responsavel: dados.responsavel_tecnico || dados.responsavel_legal || '',
-      proxima_data: subtrairDias(dados.validade_licenca, 60), // avisar 60 dias antes
+      proxima_data: subtrairDias(dados.validade_licenca, 60),
       descricao: `Alvará Sanitário vigente até ${new Date(dados.validade_licenca).toLocaleDateString('pt-BR')}. ⚠️ A renovação deve ser solicitada com antecedência de 30 a 120 dias antes do término da validade — por isso este aviso foi gerado para 60 dias antes do vencimento.`,
     })
   }
 
-  // Dedetização — próxima data informada diretamente
   if (dados.proxima_dedetizacao) {
     obrigacoes.push({
       origem: 'manual_dedetizacao',
@@ -104,7 +100,6 @@ export function gerarObrigacoesDoManual(dados) {
       descricao: `Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009). 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
     })
   } else if (dados.ultima_dedetizacao) {
-    // Calcular +6 meses da última
     obrigacoes.push({
       origem: 'manual_dedetizacao',
       nome: 'Dedetização — Controle de Pragas',
@@ -116,7 +111,6 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
-  // CESP de pragas — avisar 30 dias antes do vencimento
   if (dados.validade_cesp_pragas) {
     obrigacoes.push({
       origem: 'manual_cesp_pragas',
@@ -129,7 +123,6 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
-  // Limpeza da Caixa d'Água — próxima data ou +6 meses
   if (dados.proxima_limpeza_reservatorio) {
     obrigacoes.push({
       origem: 'manual_limpeza_agua',
@@ -152,7 +145,6 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
-  // Manutenção Autoclave — próxima data ou +6 meses
   if (dados.proxima_manutencao) {
     obrigacoes.push({
       origem: 'manual_manutencao_autoclave',
@@ -175,7 +167,6 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
-  // Manutenção Climatizador — filtros mensais
   if (dados.ultima_manutencao_ar) {
     obrigacoes.push({
       origem: 'manual_manutencao_ar',
@@ -188,7 +179,6 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
-  // Levantamento Radiométrico — a cada 4 anos
   if (dados.data_levantamento_radiometrico) {
     obrigacoes.push({
       origem: 'manual_radiometrico',
@@ -201,7 +191,6 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
-  // CESP de Resíduos — avisar 30 dias antes
   if (dados.validade_cesp) {
     obrigacoes.push({
       origem: 'manual_cesp_residuos',
@@ -217,20 +206,19 @@ export function gerarObrigacoesDoManual(dados) {
   return obrigacoes
 }
 
-// POPs
+// ─── POPs ─────────────────────────────────────────────────────────────────────
 export function usePOPs(clinicaId) {
   const [pops, setPops]       = useState([])
   const [loading, setLoading] = useState(true)
 
   const fetch = async () => {
-  if (!clinicaId) {
-    setLoading(false)   // ← garante que loading vira false
-    return
+    if (!clinicaId) { setLoading(false); return }
+    setLoading(true)
+    const { data } = await supabase
+      .from('pops').select('*').eq('clinica_id', clinicaId).order('created_at', { ascending: false })
+    setPops(data || [])
+    setLoading(false)
   }
-  setLoading(true)
-  ...
-  setLoading(false)
-}
 
   useEffect(() => { fetch() }, [clinicaId])
 
@@ -255,13 +243,13 @@ export function usePOPs(clinicaId) {
   return { pops, loading, criar, aprovar, remover, refetch: fetch }
 }
 
-// Colaboradores
+// ─── Colaboradores ────────────────────────────────────────────────────────────
 export function useColaboradores(clinicaId) {
   const [colaboradores, setColaboradores] = useState([])
   const [loading, setLoading]             = useState(true)
 
   const fetch = async () => {
-    if (!clinicaId) return
+    if (!clinicaId) { setLoading(false); return }
     setLoading(true)
     const { data } = await supabase
       .from('colaboradores').select('*').eq('clinica_id', clinicaId).eq('ativo', true).order('nome')
@@ -290,13 +278,13 @@ export function useColaboradores(clinicaId) {
   return { colaboradores, loading, criar, remover, refetch: fetch }
 }
 
-// Obrigações
+// ─── Obrigações ───────────────────────────────────────────────────────────────
 export function useObrigacoes(clinicaId) {
   const [obrigacoes, setObrigacoes] = useState([])
   const [loading, setLoading]       = useState(true)
 
   const fetch = async () => {
-    if (!clinicaId) return
+    if (!clinicaId) { setLoading(false); return }
     setLoading(true)
     const { data } = await supabase
       .from('obrigacoes').select('*').eq('clinica_id', clinicaId).order('proxima_data')
@@ -312,9 +300,7 @@ export function useObrigacoes(clinicaId) {
     return data
   }
 
-  // ── NOVO: upsert por origem (usado pelo Manual) ────────────────────────────
   const upsertPorOrigem = async (ob) => {
-    // Verificar se já existe obrigação com esta origem para esta clínica
     const { data: existente } = await supabase
       .from('obrigacoes')
       .select('id')
@@ -324,7 +310,6 @@ export function useObrigacoes(clinicaId) {
 
     let data
     if (existente) {
-      // Atualizar existente
       const { data: updated } = await supabase
         .from('obrigacoes')
         .update({
@@ -340,7 +325,6 @@ export function useObrigacoes(clinicaId) {
         .single()
       data = updated
     } else {
-      // Criar novo
       const { data: created } = await supabase
         .from('obrigacoes')
         .insert({ ...ob, clinica_id: clinicaId })
@@ -359,7 +343,6 @@ export function useObrigacoes(clinicaId) {
     return data
   }
 
-  // ── NOVO: sincronizar todas as obrigações geradas pelo Manual ─────────────
   const sincronizarDoManual = async (dadosManual) => {
     const obrigacoesGeradas = gerarObrigacoesDoManual(dadosManual)
     const resultados = await Promise.all(
@@ -403,13 +386,13 @@ function calcularProximaData(periodicidade) {
   return hoje.toISOString().slice(0, 10)
 }
 
-// Documentos
+// ─── Documentos ───────────────────────────────────────────────────────────────
 export function useDocumentos(clinicaId) {
   const [documentos, setDocumentos] = useState([])
   const [loading, setLoading]       = useState(true)
 
   const fetch = async () => {
-    if (!clinicaId) return
+    if (!clinicaId) { setLoading(false); return }
     setLoading(true)
     const { data } = await supabase
       .from('documentos').select('*').eq('clinica_id', clinicaId).order('created_at', { ascending: false })
@@ -433,13 +416,13 @@ export function useDocumentos(clinicaId) {
   return { documentos, loading, criar, remover, refetch: fetch }
 }
 
-// Ciências
+// ─── Ciências ─────────────────────────────────────────────────────────────────
 export function useCiencias(clinicaId) {
   const [ciencias, setCiencias] = useState([])
   const [loading, setLoading]   = useState(true)
 
   const fetch = async () => {
-    if (!clinicaId) return
+    if (!clinicaId) { setLoading(false); return }
     setLoading(true)
     const { data } = await supabase
       .from('ciencias')
@@ -466,4 +449,3 @@ export function useCiencias(clinicaId) {
 
   return { ciencias, loading, enviar, refetch: fetch }
 }
-
