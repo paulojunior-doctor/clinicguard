@@ -223,13 +223,14 @@ export function usePOPs(clinicaId) {
   const [loading, setLoading] = useState(true)
 
   const fetch = async () => {
-    if (!clinicaId) return
-    setLoading(true)
-    const { data } = await supabase
-      .from('pops').select('*').eq('clinica_id', clinicaId).order('created_at', { ascending: false })
-    setPops(data || [])
-    setLoading(false)
+  if (!clinicaId) {
+    setLoading(false)   // ← garante que loading vira false
+    return
   }
+  setLoading(true)
+  ...
+  setLoading(false)
+}
 
   useEffect(() => { fetch() }, [clinicaId])
 
