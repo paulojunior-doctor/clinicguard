@@ -5,8 +5,6 @@ import Layout from '@/components/layout/Layout'
 import Landing from '@/pages/Landing'
 import Login from '@/pages/Login'
 import Cadastro from '@/pages/Cadastro'
-import Setup from '@/pages/Setup'
-import SeedPOPs from '@/pages/SeedPOPs'
 import Dashboard from '@/pages/Dashboard'
 import POPs from '@/pages/POPs'
 import Colaboradores from '@/pages/Colaboradores'
@@ -26,7 +24,7 @@ function PrivateRoute({ children }) {
 }
 
 function AppRoutes() {
-  const { user, isSuperAdmin, clinicaId, popsSeeded, setPopsSeeded } = useAuth()
+  const { user, isSuperAdmin } = useAuth()
   const [tourAtivo, setTourAtivo] = useState(true)
 
   if (user && isSuperAdmin) {
@@ -37,9 +35,6 @@ function AppRoutes() {
       </Routes>
     )
   }
-
-  if (user && !clinicaId) return <Setup onComplete={() => {}} />
-  if (user && clinicaId && !popsSeeded) return <SeedPOPs onComplete={() => setPopsSeeded(true)} />
 
   return (
     <>
