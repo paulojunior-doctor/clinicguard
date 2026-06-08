@@ -3,12 +3,20 @@ import { supabase } from '@/lib/supabase'
 
 const AuthContext = createContext(null)
 
+const CLINICA_ID_KEY = 'clinicguard_clinica_id'
+const POPS_SEEDED_KEY = 'pops_seeded'
+
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [perfil, setPerfil] = useState(null)
-  const [clinicaId, setClinicaId] = useState(null)
-  const [popsSeeded, setPopsSeeded] = useState(false)
+  const [clinicaId, setClinicaId] = useState(localStorage.getItem(CLINICA_ID_KEY))
+  const [popsSeeded, setPopsSeededState] = useState(localStorage.getItem(POPS_SEEDED_KEY) === 'true')
   const [loading, setLoading] = useState(true)
+
+  const setPopsSeeded = (val) => {
+    localStorage.setItem(POPS_SEEDED_KEY, val ? 'true' : 'false')
+    setPopsSeededState(val)
+  }
 
   const carregarPerfil = async (userId) => {
     try {
@@ -21,12 +29,15 @@ export function AuthProvider({ children }) {
         setPerfil(data)
         if (data.clinica_id) {
           setClinicaId(data.clinica_id)
+          localStorage.setItem(CLINICA_ID_KEY, data.clinica_id)
           // Verificar se POPs já foram inseridos
           const { count } = await supabase
             .from('pops')
             .select('*', { count: 'exact', head: true })
             .eq('clinica_id', data.clinica_id)
-          setPopsSeeded(count > 0)
+          const seeded = count > 0
+          setPopsSeededState(seeded)
+          localStorage.setItem(POPS_SEEDED_KEY, seeded ? 'true' : 'false')
         }
       }
       return data
@@ -58,7 +69,9 @@ export function AuthProvider({ children }) {
         setUser(null)
         setPerfil(null)
         setClinicaId(null)
-        setPopsSeeded(false)
+        setPopsSeededState(false)
+        localStorage.removeItem(CLINICA_ID_KEY)
+        localStorage.removeItem(POPS_SEEDED_KEY)
       }
     })
 
@@ -84,7 +97,9 @@ export function AuthProvider({ children }) {
     setUser(null)
     setPerfil(null)
     setClinicaId(null)
-    setPopsSeeded(false)
+    setPopsSeededState(false)
+    localStorage.removeItem(CLINICA_ID_KEY)
+    localStorage.removeItem(POPS_SEEDED_KEY)
   }
 
   const isSuperAdmin = perfil?.role === 'superadmin'
