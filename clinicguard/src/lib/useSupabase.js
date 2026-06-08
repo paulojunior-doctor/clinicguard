@@ -17,7 +17,39 @@ export async function getOrCreateClinica(nome, rt) {
 }
 
 export function useClinicaId() {
-  return localStorage.getItem(CLINICA_ID_KEY)
+  const [clinicaId, setClinicaId] = useState(null)
+
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data }) => {
+      if (!data?.user) return
+      supabase
+        .from('perfis')
+        .select('clinica_id')
+        .eq('id', data.user.id)
+        .single()
+        .then(({ data: perfil }) => {
+          if (perfil?.clinica_id) setClinicaId(perfil.clinica_id)
+        })
+    })
+  }, [])
+
+  return clinicaId
+}
+
+export function useClinica(clinicaId) {
+  const [clinica, setClinica] = useState(null)
+
+  useEffect(() => {
+    if (!clinicaId) return
+    supabase
+      .from('clinicas')
+      .select('nome, responsavel_tecnico')
+      .eq('id', clinicaId)
+      .single()
+      .then(({ data }) => { if (data) setClinica(data) })
+  }, [clinicaId])
+
+  return clinica
 }
 
 // ─── HELPER: somar meses a uma data string 'YYYY-MM-DD' ──────────────────────
