@@ -69,24 +69,20 @@ export default function Cadastro() {
     }
 
     // 3. Criar perfil via função security definer (bypassa RLS)
-const { error: perfilError } = await supabase.rpc('criar_perfil', {
-  p_user_id: userId,
-  p_clinica_id: clinica.id,
-  p_role: 'admin',
-})
+    const { error: perfilError } = await supabase.rpc('criar_perfil', {
+      p_user_id: userId,
+      p_clinica_id: clinica.id,
+      p_role: 'admin',
+    })
 
-if (perfilError) {
-  setErro('Erro ao configurar perfil. Contate o suporte.')
-  setLoading(false)
-  return
-}
-
-    // 4. Salvar clinica_id no localStorage (compatibilidade atual)
-    localStorage.setItem('clinicguard_clinica_id', clinica.id)
-    localStorage.setItem('pops_seeded', 'false')
+    if (perfilError) {
+      setErro('Erro ao configurar perfil. Contate o suporte.')
+      setLoading(false)
+      return
+    }
 
     setLoading(false)
-    navigate('/dashboard')
+    navigate('/login')
   }
 
   return (
