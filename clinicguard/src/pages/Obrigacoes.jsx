@@ -2,13 +2,9 @@ import { useState, useRef } from 'react'
 import { Plus, AlertTriangle, CheckCircle, Clock, Upload, Loader, FileText, X, Eye } from 'lucide-react'
 import { PageHeader, StatusBadge, Modal, EmptyState } from '@/components/ui'
 import { useObrigacoes, useClinicaId } from '@/lib/useSupabase'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 
 const BUCKET = 'documentos'
-const supabase = createClient(
-  import.meta.env.VITE_SUPABASE_URL,
-  import.meta.env.VITE_SUPABASE_ANON_KEY
-)
 
 const categorias = ['Todas', 'Esterilização', 'Manutenção', 'Controle de Pragas', 'Licença', 'Medicina do Trabalho', 'Imunização', 'Resíduos']
 const periodicidades = ['Semanal', 'Quinzenal', 'Mensal', 'Trimestral', 'Semestral', 'Anual', 'Conforme esquema']
