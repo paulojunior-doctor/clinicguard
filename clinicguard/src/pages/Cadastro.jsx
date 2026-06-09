@@ -48,35 +48,19 @@ export default function Cadastro() {
 
     const userId = authData.user.id
 
-    // 2. Criar clínica
-    const { data: clinica, error: clinicaError } = await supabase
-      .from('clinicas')
-      .insert({
-        nome: form.nome,
-        responsavel_tecnico: form.responsavel_tecnico,
-        cro: form.cro,
-        cnpj: form.cnpj,
-        telefone: form.telefone,
-        email: form.email,
-      })
-      .select('id')
-      .single()
-
-    if (clinicaError) {
-      setErro('Erro ao criar clínica. Contate o suporte.')
-      setLoading(false)
-      return
-    }
-
-    // 3. Criar perfil via função security definer (bypassa RLS)
-    const { error: perfilError } = await supabase.rpc('criar_perfil', {
+    // 2. Criar clínica e perfil via função security definer (bypassa RLS)
+    const { data: clinicaId, error: rpcError } = await supabase.rpc('criar_clinica_e_perfil', {
       p_user_id: userId,
-      p_clinica_id: clinica.id,
-      p_role: 'admin',
+      p_nome: form.nome,
+      p_responsavel_tecnico: form.responsavel_tecnico,
+      p_cro: form.cro || null,
+      p_cnpj: form.cnpj || null,
+      p_telefone: form.telefone || null,
+      p_email: form.email || null,
     })
 
-    if (perfilError) {
-      setErro('Erro ao configurar perfil. Contate o suporte.')
+    if (rpcError) {
+      setErro('Erro ao configurar clínica. Contate o suporte.')
       setLoading(false)
       return
     }
