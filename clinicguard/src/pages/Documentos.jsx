@@ -16,15 +16,9 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { createClient } from '@supabase/supabase-js'
+import { supabase } from '@/lib/supabase'
 
-// ─── Configuração do Supabase ────────────────────────────────────────────────
-// Substitua pelos valores do seu projeto em supabase.com > Settings > API
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY
 const BUCKET = 'documentos'
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function formatBytes(bytes) {
