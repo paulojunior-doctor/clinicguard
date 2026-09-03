@@ -9,7 +9,7 @@ export default function Colaboradores() {
   const clinicaId = useClinicaId()
   const { colaboradores, loading, criar, remover } = useColaboradores(clinicaId)
   const { pops } = usePOPs(clinicaId)
-  const { enviar } = useCiencias(clinicaId)
+  const { enviar, atualizarWhatsapp } = useCiencias(clinicaId)
 
   const [modalNovo, setModalNovo]         = useState(false)
   const [modalEnviar, setModalEnviar]     = useState(false)
@@ -18,6 +18,7 @@ export default function Colaboradores() {
   const [salvando, setSalvando]           = useState(false)
   const [enviando, setEnviando]           = useState(false)
   const [copiado, setCopiado]             = useState({})
+  const [statusAuto, setStatusAuto]       = useState({}) // { [colabId]: 'enviando' | 'enviado' | 'falhou' }
 
   const [novo, setNovo] = useState({ nome: '', cargo: 'Auxiliar de Saúde Bucal', email: '', telefone: '' })
   const [popSel, setPopSel]     = useState('')
@@ -41,24 +42,61 @@ export default function Colaboradores() {
   const enviarCiencia = async () => {
     if (!popSel || colabSel.length === 0) return
     setEnviando(true)
-    await enviar(popSel, colabSel)
+    const registros = await enviar(popSel, colabSel) // array com { id, colaborador_id, ... }
     setEnviando(false)
 
-    // Montar lista de colaboradores com seus links
+    // Montar lista de colaboradores com seus links e o id da ciência criada
     const base = window.location.origin
     const popTitulo = pops.find(p => p.id === popSel)?.titulo || 'POP'
     const colabsEnviados = colaboradores
       .filter(c => colabSel.includes(c.id))
       .map(c => ({
         ...c,
-        link: `${base}/assinar?colab=${c.id}&clinica=${clinicaId}`
+        link: `${base}/assinar?colab=${c.id}&clinica=${clinicaId}`,
+        cienciaId: registros?.find(r => r.colaborador_id === c.id)?.id || null,
       }))
 
     setModalEnviar(false)
     setPopSel('')
     setColabSel([])
+    setStatusAuto({})
     // Abrir modal de confirmação com os links
     setModalEnviado({ colabs: colabsEnviados, popTitulo })
+  }
+
+  // ── ENVIO AUTOMÁTICO VIA WHATSAPP (Twilio, backend) ─────────────────────────
+  const mensagemTexto = (col, link, popTitulo) =>
+    `Olá ${col.nome.split(' ')[0]}! 👋\n\nVocê tem o POP "${popTitulo}" da Buccal Odontologia aguardando sua ciência.\n\nClique no link abaixo e assine digitalmente:\n\n${link}\n\n🔑 Sua senha: ${col.senha_acesso}\n\n✅ O processo leva menos de 2 minutos.`
+
+  const enviarAutomatico = async (col) => {
+    if (!col.telefone) return
+    setStatusAuto(prev => ({ ...prev, [col.id]: 'enviando' }))
+    try {
+      const resp = await fetch('/api/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telefone: col.telefone,
+          mensagem: mensagemTexto(col, col.link, modalEnviado?.popTitulo || 'POP'),
+        }),
+      })
+      const data = await resp.json()
+      if (!resp.ok) throw new Error(data.error || 'Falha no envio')
+
+      setStatusAuto(prev => ({ ...prev, [col.id]: 'enviado' }))
+      if (col.cienciaId) await atualizarWhatsapp(col.cienciaId, { status: 'enviado', sid: data.sid })
+    } catch (err) {
+      setStatusAuto(prev => ({ ...prev, [col.id]: 'falhou' }))
+      if (col.cienciaId) await atualizarWhatsapp(col.cienciaId, { status: 'falhou', erro: err.message })
+    }
+  }
+
+  const enviarTodosAutomatico = async () => {
+    if (!modalEnviado) return
+    const alvos = modalEnviado.colabs.filter(c => c.telefone)
+    for (const col of alvos) {
+      await enviarAutomatico(col)
+    }
   }
 
   const verLink = (col) => {
@@ -249,8 +287,17 @@ export default function Colaboradores() {
                 <CheckCircle className="w-4 h-4" />
                 POP "{modalEnviado.popTitulo}" enviado para {modalEnviado.colabs.length} colaborador(es)!
               </p>
-              <p className="text-xs mt-1 text-green-700">Agora envie o link de assinatura para cada um pelo WhatsApp ou Email:</p>
+              <p className="text-xs mt-1 text-green-700">Envie automaticamente via WhatsApp (API) ou dispare manualmente:</p>
             </div>
+
+            {modalEnviado.colabs.some(c => c.telefone) && (
+              <button
+                onClick={enviarTodosAutomatico}
+                className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition-colors"
+              >
+                <Phone className="w-4 h-4" /> Enviar todos automaticamente via WhatsApp
+              </button>
+            )}
 
             <div className="space-y-3 max-h-96 overflow-y-auto">
               {modalEnviado.colabs.map(col => (
@@ -288,14 +335,25 @@ export default function Colaboradores() {
                   {/* Botões de envio */}
                   <div className="grid grid-cols-2 gap-2">
                     {col.telefone ? (
-                      <a
-                        href={whatsappLink(col, col.link, modalEnviado.popTitulo)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 bg-green-500 hover:bg-green-600 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors"
+                      <button
+                        onClick={() => enviarAutomatico(col)}
+                        disabled={statusAuto[col.id] === 'enviando' || statusAuto[col.id] === 'enviado'}
+                        className={`flex items-center justify-center gap-2 text-white text-xs font-semibold px-3 py-2 rounded-lg transition-colors ${
+                          statusAuto[col.id] === 'enviado' ? 'bg-emerald-700' :
+                          statusAuto[col.id] === 'falhou' ? 'bg-red-500 hover:bg-red-600' :
+                          'bg-green-500 hover:bg-green-600'
+                        }`}
                       >
-                        <Phone className="w-3.5 h-3.5" /> Enviar WhatsApp
-                      </a>
+                        {statusAuto[col.id] === 'enviando' ? (
+                          <><Loader className="w-3.5 h-3.5 animate-spin" /> Enviando...</>
+                        ) : statusAuto[col.id] === 'enviado' ? (
+                          <><CheckCircle className="w-3.5 h-3.5" /> Enviado ✓</>
+                        ) : statusAuto[col.id] === 'falhou' ? (
+                          <><Phone className="w-3.5 h-3.5" /> Falhou — tentar de novo</>
+                        ) : (
+                          <><Phone className="w-3.5 h-3.5" /> Enviar automático</>
+                        )}
+                      </button>
                     ) : (
                       <div className="flex items-center justify-center gap-2 bg-gray-100 text-gray-400 text-xs px-3 py-2 rounded-lg">
                         <Phone className="w-3.5 h-3.5" /> Sem WhatsApp
