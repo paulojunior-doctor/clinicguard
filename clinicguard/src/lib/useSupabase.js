@@ -447,5 +447,20 @@ export function useCiencias(clinicaId) {
     return data
   }
 
-  return { ciencias, loading, enviar, refetch: fetch }
+  // Atualiza o status do envio automático via WhatsApp (Twilio) para um registro de ciência
+  const atualizarWhatsapp = async (cienciaId, { status, sid = null, erro = null }) => {
+    const payload = {
+      whatsapp_status: status, // 'enviado' | 'falhou'
+      whatsapp_sid: sid,
+      whatsapp_erro: erro,
+      whatsapp_enviado_em: status === 'enviado' ? new Date().toISOString() : null,
+    }
+    const { data } = await supabase.from('ciencias').update(payload).eq('id', cienciaId).select()
+    if (data?.[0]) {
+      setCiencias(prev => prev.map(c => c.id === cienciaId ? { ...c, ...data[0] } : c))
+    }
+    return data?.[0]
+  }
+
+  return { ciencias, loading, enviar, atualizarWhatsapp, refetch: fetch }
 }
