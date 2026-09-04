@@ -7,7 +7,7 @@ import { formatDate } from '@/lib/mockData'
 
 export default function Dashboard() {
   const navigate    = useNavigate()
-  const { clinicaId } = useAuth()
+  const { clinicaId, authError, retryAuth } = useAuth()
   const clinica     = useClinica(clinicaId)
 
   const { pops,          loading: l1 } = usePOPs(clinicaId)
@@ -58,8 +58,15 @@ export default function Dashboard() {
   const scoreLabel = score >= 90 ? 'Excelente' : score >= 75 ? 'Bom' : score >= 60 ? 'Regular' : 'Crítico'
 
  if (!clinicaId) return (
-  <div className="p-6 flex items-center justify-center min-h-96 gap-2 text-gray-400">
-    <Loader className="w-5 h-5 animate-spin" /> Carregando...
+  <div className="p-6 flex flex-col items-center justify-center min-h-96 gap-3 text-gray-400">
+    {authError ? (
+      <>
+        <p className="text-sm text-gray-500">Não conseguimos carregar seus dados agora.</p>
+        <button onClick={retryAuth} className="btn-secondary text-sm">Tentar novamente</button>
+      </>
+    ) : (
+      <><Loader className="w-5 h-5 animate-spin" /> Carregando...</>
+    )}
   </div>
 )
 
