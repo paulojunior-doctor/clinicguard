@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
-import { useObrigacoes, useClinicaId, gerarObrigacoesDoManual } from "@/lib/useSupabase";
+import { useObrigacoes, gerarObrigacoesDoManual } from "@/lib/useSupabase";
+import { useAuth } from "@/lib/auth";
 
 // ─── ESTADO INICIAL (campos em branco para o RT preencher) ───────────────────
 const ESTADO_INICIAL = {
@@ -468,7 +469,7 @@ export default function Manual() {
   const [salvo, setSalvo] = useState(false);
   const [sincronizando, setSincronizando] = useState(false);
   const [sincronizado, setSincronizado] = useState(false);
-  const clinicaId = useClinicaId();
+  const { clinicaId } = useAuth();
   const { sincronizarDoManual } = useObrigacoes(clinicaId);
 
   function onChange(campo, valor) {

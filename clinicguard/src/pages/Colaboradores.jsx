@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Plus, Users, Trash2, Loader, Send, Copy, Check, Phone, Mail, Shield, CheckCircle } from 'lucide-react'
 import { PageHeader, Modal, EmptyState } from '@/components/ui'
-import { useColaboradores, usePOPs, useCiencias, useClinicaId } from '@/lib/useSupabase'
+import { useColaboradores, usePOPs, useCiencias } from '@/lib/useSupabase'
+import { useAuth } from '@/lib/auth'
 
 const cargos = ['Cirurgião-Dentista', 'Auxiliar de Saúde Bucal', 'Técnico em Saúde Bucal', 'Recepcionista', 'Higienizadora', 'Estagiário(a)', 'Responsável Técnico', 'Outro']
 
 export default function Colaboradores() {
-  const clinicaId = useClinicaId()
+  const { clinicaId } = useAuth()
   const { colaboradores, loading, criar, remover } = useColaboradores(clinicaId)
   const { pops } = usePOPs(clinicaId)
   const { enviar, atualizarWhatsapp } = useCiencias(clinicaId)

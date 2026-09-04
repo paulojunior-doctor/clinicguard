@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ShieldAlert, CheckCircle, FileText, GraduationCap, CheckSquare, FolderOpen, Download, AlertTriangle, Shield, Loader } from 'lucide-react'
-import { usePOPs, useCiencias, useObrigacoes, useDocumentos, useClinicaId } from '@/lib/useSupabase'
+import { usePOPs, useCiencias, useObrigacoes, useDocumentos } from '@/lib/useSupabase'
+import { useAuth } from '@/lib/auth'
 
 function calcStatus(dataStr) {
   if (!dataStr) return 'alerta'
@@ -81,7 +82,7 @@ function gerarRelatorio(popsAtivos, cienciasAssin, obrigOk, docsOk) {
 }
 
 export default function Fiscalizacao() {
-  const clinicaId = useClinicaId()
+  const { clinicaId } = useAuth()
   const { pops,       loading: l1 } = usePOPs(clinicaId)
   const { ciencias,   loading: l2 } = useCiencias(clinicaId)
   const { obrigacoes, loading: l3 } = useObrigacoes(clinicaId)

@@ -1,12 +1,13 @@
 import { useNavigate } from 'react-router-dom'
 import { ShieldAlert, FileText, GraduationCap, CheckSquare, FolderOpen, TrendingUp, AlertTriangle, CheckCircle, Clock, Loader, Users } from 'lucide-react'
 import { ScoreRing } from '@/components/ui'
-import { usePOPs, useCiencias, useObrigacoes, useDocumentos, useColaboradores, useClinicaId, useClinica } from '@/lib/useSupabase'
+import { usePOPs, useCiencias, useObrigacoes, useDocumentos, useColaboradores, useClinica } from '@/lib/useSupabase'
+import { useAuth } from '@/lib/auth'
 import { formatDate } from '@/lib/mockData'
 
 export default function Dashboard() {
   const navigate    = useNavigate()
-  const clinicaId   = useClinicaId()
+  const { clinicaId } = useAuth()
   const clinica     = useClinica(clinicaId)
 
   const { pops,          loading: l1 } = usePOPs(clinicaId)

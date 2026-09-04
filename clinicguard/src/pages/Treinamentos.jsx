@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import { Send, CheckCircle, Clock, ChevronDown, ChevronUp, Monitor, MapPin, Loader, FileText, Brain, Trophy, XCircle } from 'lucide-react'
 import { PageHeader, Modal, EmptyState } from '@/components/ui'
-import { useCiencias, usePOPs, useColaboradores, useClinicaId } from '@/lib/useSupabase'
+import { useCiencias, usePOPs, useColaboradores } from '@/lib/useSupabase'
+import { useAuth } from '@/lib/auth'
 
 export default function Treinamentos() {
-  const clinicaId             = useClinicaId()
+  const { clinicaId }         = useAuth()
   const { ciencias, loading, enviar } = useCiencias(clinicaId)
   const { pops }              = usePOPs(clinicaId)
   const { colaboradores }     = useColaboradores(clinicaId)

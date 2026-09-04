@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react'
 import { Plus, AlertTriangle, CheckCircle, Clock, Upload, Loader, FileText, X, Eye } from 'lucide-react'
 import { PageHeader, StatusBadge, Modal, EmptyState } from '@/components/ui'
-import { useObrigacoes, useClinicaId } from '@/lib/useSupabase'
+import { useObrigacoes } from '@/lib/useSupabase'
+import { useAuth } from '@/lib/auth'
 import { supabase } from '@/lib/supabase'
 
 const BUCKET = 'documentos'
@@ -63,7 +64,7 @@ function formatBytes(bytes) {
 }
 
 export default function Obrigacoes() {
-  const clinicaId = useClinicaId()
+  const { clinicaId } = useAuth()
   const { obrigacoes, loading, criar, registrar } = useObrigacoes(clinicaId)
 
   const [filtro, setFiltro]             = useState('Todas')
