@@ -61,9 +61,10 @@ function gerarRelatorio(popsAtivos, cienciasAssin, obrigOk, docsOk) {
     'DECLARAÇÃO JURÍDICA',
     '================================================================',
     'Este relatório foi gerado automaticamente pelo ClinicGuard e',
-    'contém evidências digitais com validade jurídica conforme',
-    'MP 2.200-2/2001 (ICP-Brasil). Todas as assinaturas possuem',
-    'registro de IP, data/hora e dispositivo.',
+    'contém o registro de ciências/assinaturas eletrônicas simples',
+    '(Lei nº 14.063/2020) dos colaboradores, com evidências de',
+    'autoria e integridade: identificação, data/hora, IP,',
+    'geolocalização (quando autorizada) e hash do conteúdo assinado.',
     '',
     `Emitido por: ClinicGuard Compliance Sanitário`,
     `Data/hora: ${agora}`,
@@ -252,7 +253,7 @@ export default function Fiscalizacao() {
       {/* Rodapé jurídico */}
       {ativo && (
         <div className="mt-5 bg-gray-50 border border-gray-100 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
-          <strong className="text-gray-700">Relatório jurídico:</strong> Gerado em {new Date().toLocaleString('pt-BR')} com evidências digitais conforme MP 2.200-2/2001 (ICP-Brasil). Assinaturas com registro de IP, data/hora e dispositivo. Clínica: Buccal Odontologia · CNPJ: 24.343.999/0001-30
+          <strong className="text-gray-700">Registro de evidências:</strong> Gerado em {new Date().toLocaleString('pt-BR')}. Assinaturas eletrônicas simples (Lei nº 14.063/2020), com registro de IP, data/hora, geolocalização quando autorizada e hash do conteúdo assinado. Clínica: Buccal Odontologia · CNPJ: 24.343.999/0001-30
         </div>
       )}
     </div>
