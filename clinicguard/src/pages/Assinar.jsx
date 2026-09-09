@@ -5,6 +5,39 @@ import { supabase } from '@/lib/supabase'
 
 const NOTA_MINIMA = 70 // % mínimo para aprovação
 
+// ─── EVIDÊNCIAS: HASH E CÓDIGO DE ASSINATURA ─────────────────────────────────
+// Gera o SHA-256 do conteúdo exato do POP no momento da assinatura.
+// Permite, no futuro, detectar se o POP foi alterado depois de assinado
+// (comparando este hash com um novo hash do conteúdo atual do POP).
+async function gerarHashSHA256(texto) {
+  const dados = new TextEncoder().encode(texto)
+  const buffer = await crypto.subtle.digest('SHA-256', dados)
+  return Array.from(new Uint8Array(buffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Representação canônica do conteúdo do POP que foi de fato lido/assinado.
+function conteudoCanonicoPOP(pop) {
+  return JSON.stringify({
+    titulo: pop?.titulo || '',
+    objetivo: pop?.objetivo || '',
+    passos: pop?.passos || [],
+    pontos_criticos: pop?.pontos_criticos || [],
+    conteudo: pop?.conteudo || '',
+  })
+}
+
+// Identificador único da operação de assinatura (não é sequencial —
+// suficiente para rastreabilidade em uma tabela ciencias existente;
+// não substitui numeração formal caso vire requisito futuro).
+function gerarCodigoAssinatura() {
+  const d = new Date()
+  const yyyymmdd = d.toISOString().slice(0, 10).replace(/-/g, '')
+  const sufixo = crypto.randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()
+  return `CG-SIGN-${yyyymmdd}-${sufixo}`
+}
+
 // ─── GERAR QUIZ VIA SERVERLESS ────────────────────────────────────────────────
 async function gerarQuiz(pop) {
   const response = await fetch('/api/quiz', {
@@ -370,6 +403,17 @@ export default function Assinar() {
     const dispositivo = navigator.userAgent.includes('Mobile') ? 'Mobile' : 'Desktop'
     const navegador = navigator.userAgent.split(')')[0].split('(')[1] || 'Desconhecido'
 
+    let popHash = null
+    let assinaturaCodigo = null
+    try {
+      popHash = await gerarHashSHA256(conteudoCanonicoPOP(popAtual))
+      assinaturaCodigo = gerarCodigoAssinatura()
+    } catch (e) {
+      // Se a geração do hash falhar por algum motivo, a assinatura ainda
+      // é registrada — evidência de hash é um reforço, não um bloqueio.
+      console.error('Falha ao gerar hash/código de evidência:', e)
+    }
+
     const { error } = await supabase
       .from('ciencias')
       .update({
@@ -381,6 +425,8 @@ export default function Assinar() {
         longitude: geo?.lng || null,
         endereco_geo: endereco,
         nome_colaborador: colaborador.nome,
+        pop_hash: popHash,
+        assinatura_codigo: assinaturaCodigo,
         quiz_perguntas: quizDados?.perguntas || null,
         quiz_respostas: quizDados?.respostas || null,
         quiz_nota: quizDados?.nota || null,
@@ -582,7 +628,7 @@ export default function Assinar() {
         <label className="flex items-start gap-3 card p-4 cursor-pointer">
           <input type="checkbox" checked={declarado} onChange={e => setDeclarado(e.target.checked)} className="mt-0.5 w-5 h-5 rounded" />
           <span className="text-sm text-gray-700 leading-relaxed">
-            <strong>Declaro</strong> que li, compreendi e estou ciente do conteúdo deste POP, e que tenho ciência das minhas responsabilidades. Esta assinatura digital tem validade jurídica conforme MP 2.200-2/2001.
+            <strong>Declaro</strong> que li, compreendi e estou ciente do conteúdo deste POP, e que tenho ciência das minhas responsabilidades. Esta é uma assinatura eletrônica simples (Lei nº 14.063/2020), registrada com evidências de autoria e integridade (identificação, data/hora, IP, geolocalização quando autorizada e hash do conteúdo assinado).
           </span>
         </label>
 
