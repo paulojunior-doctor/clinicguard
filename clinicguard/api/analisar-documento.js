@@ -59,7 +59,10 @@ REGRAS ABSOLUTAS — NÃO INVENÇÃO:
 
 Nome do arquivo enviado: "${fileName || 'documento.pdf'}"
 
-Responda APENAS com JSON válido, sem texto antes ou depois, sem markdown, sem blocos de código. Formato exato:
+FORMATO DA RESPOSTA — SIGA EXATAMENTE:
+Responda SOMENTE com o objeto JSON puro. Não escreva nada antes ou depois. Não use blocos de código markdown (não use \`\`\`json nem \`\`\`). Não inclua nenhuma explicação, apenas o JSON começando direto em { e terminando em }.
+
+Formato exato:
 {
   "classification": "certificado_controle_pragas" | "laudo_controle_pragas" | "comprovante_servico" | "relatorio_controle_pragas" | "documento_nao_relacionado",
   "classification_confidence": 0.0,
@@ -76,7 +79,7 @@ Responda APENAS com JSON válido, sem texto antes ou depois, sem markdown, sem b
       },
       body: JSON.stringify({
         model: 'claude-sonnet-5',
-        max_tokens: 3000,
+        max_tokens: 4000,
         messages: [{
           role: 'user',
           content: [
@@ -97,21 +100,36 @@ Responda APENAS com JSON válido, sem texto antes ou depois, sem markdown, sem b
     if (!response.ok) {
       const err = await response.text()
       console.error('Erro Anthropic:', err)
-      return res.status(500).json({ error: 'Erro ao chamar API da IA' })
+      return res.status(500).json({ error: 'Erro ao chamar API da IA', detalhe: err.slice(0, 1000) })
     }
 
     const data = await response.json()
     const texto = data.content?.[0]?.text || ''
 
+    // Remove eventuais blocos de markdown, caso a IA os inclua mesmo assim
+    const textoLimpo = texto.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+
     let resultado
     try {
-      resultado = JSON.parse(texto)
+      resultado = JSON.parse(textoLimpo)
     } catch {
-      const match = texto.match(/\{[\s\S]*\}/)
+      const match = textoLimpo.match(/\{[\s\S]*\}/)
       if (match) {
-        resultado = JSON.parse(match[0])
+        try {
+          resultado = JSON.parse(match[0])
+        } catch (e2) {
+          console.error('Texto bruto retornado pela IA:', texto)
+          return res.status(500).json({
+            error: 'JSON inválido na resposta da IA',
+            raw: texto.slice(0, 2000),
+          })
+        }
       } else {
-        throw new Error('JSON inválido na resposta da IA')
+        console.error('Texto bruto retornado pela IA:', texto)
+        return res.status(500).json({
+          error: 'JSON inválido na resposta da IA',
+          raw: texto.slice(0, 2000),
+        })
       }
     }
 
