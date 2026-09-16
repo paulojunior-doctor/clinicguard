@@ -103,9 +103,9 @@ Formato exato:
       return res.status(500).json({ error: 'Erro ao chamar API da IA', detalhe: err.slice(0, 1000) })
     }
 
-        const data = await response.json()
-    const texto = data.content?.[0]?.text || ''
-
+            const data = await response.json()
+    const blocoTexto = (data.content || []).find(b => b.type === 'text')
+    const texto = blocoTexto?.text || ''
     if (!texto) {
       console.error('Resposta vazia da IA. Estrutura completa:', JSON.stringify(data))
       return res.status(500).json({
