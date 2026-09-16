@@ -89,25 +89,31 @@ export function gerarObrigacoesDoManual(dados) {
     })
   }
 
+    const periodicidadePragas = dados.periodicidade_pragas || 'Semestral'
+  const mesesPragas = { 'Mensal': 1, 'Quinzenal': 0.5, 'Trimestral': 3, 'Semestral': 6, 'Anual': 12 }[periodicidadePragas] || 6
+  const notaPeriodicidade = dados.periodicidade_pragas
+    ? `Periodicidade informada no certificado: ${dados.periodicidade_pragas.toLowerCase()}.`
+    : 'Frequência mínima semestral (RDC 52/2009).'
+
   if (dados.proxima_dedetizacao) {
     obrigacoes.push({
       origem: 'manual_dedetizacao',
       nome: 'Dedetização — Controle de Pragas',
       categoria: 'Controle de Pragas',
-      periodicidade: 'Semestral',
+      periodicidade: periodicidadePragas,
       responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
       proxima_data: dados.proxima_dedetizacao,
-      descricao: `Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009). 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
+      descricao: `Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. ${notaPeriodicidade} 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
     })
   } else if (dados.ultima_dedetizacao) {
     obrigacoes.push({
       origem: 'manual_dedetizacao',
       nome: 'Dedetização — Controle de Pragas',
       categoria: 'Controle de Pragas',
-      periodicidade: 'Semestral',
+      periodicidade: periodicidadePragas,
       responsavel: dados.empresa_dedetizacao || 'Empresa Licenciada',
-      proxima_data: somarMeses(dados.ultima_dedetizacao, 6),
-      descricao: `Última dedetização: ${new Date(dados.ultima_dedetizacao).toLocaleDateString('pt-BR')}. Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. Frequência mínima semestral (RDC 52/2009). 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
+      proxima_data: somarMeses(dados.ultima_dedetizacao, mesesPragas),
+      descricao: `Última dedetização: ${new Date(dados.ultima_dedetizacao).toLocaleDateString('pt-BR')}. Empresa: ${dados.empresa_dedetizacao || '—'} | CESP nº ${dados.numero_cesp_pragas || '—'}. ${notaPeriodicidade} 📋 Certificado: ao fim de cada serviço a dedetizadora deve emitir laudo técnico comprovando execução e produtos utilizados. Este certificado deve estar disponível na clínica para fiscalização da Vigilância Sanitária Municipal, renovado dentro do prazo de garantia do laudo.`,
     })
   }
 
