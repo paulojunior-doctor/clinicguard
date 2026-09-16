@@ -54,7 +54,9 @@ function calcStatus(dataStr) {
 
 function formatDate(dateStr) {
   if (!dateStr) return '—'
-  return new Date(dateStr).toLocaleDateString('pt-BR')
+  const [ano, mes, dia] = dateStr.split('-')
+  if (!ano || !mes || !dia) return new Date(dateStr).toLocaleDateString('pt-BR')
+  return `${dia}/${mes}/${ano}`
 }
 
 function formatBytes(bytes) {

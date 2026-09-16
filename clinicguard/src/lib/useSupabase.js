@@ -314,7 +314,7 @@ export function useObrigacoes(clinicaId) {
       .eq('origem', ob.origem)
       .single()
 
-    let data
+        let data
     if (existente) {
       const { data: updated } = await supabase
         .from('obrigacoes')
@@ -325,6 +325,9 @@ export function useObrigacoes(clinicaId) {
           responsavel: ob.responsavel,
           proxima_data: ob.proxima_data,
           descricao: ob.descricao,
+          ...(ob.comprovante_url !== undefined && { comprovante_url: ob.comprovante_url }),
+          ...(ob.comprovante_nome !== undefined && { comprovante_nome: ob.comprovante_nome }),
+          ...(ob.ultima_data !== undefined && { ultima_data: ob.ultima_data }),
         })
         .eq('id', existente.id)
         .select()
