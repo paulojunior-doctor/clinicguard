@@ -1,6 +1,7 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useObrigacoes, gerarObrigacoesDoManual } from "@/lib/useSupabase";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 // ─── ESTADO INICIAL (campos em branco para o RT preencher) ───────────────────
 const ESTADO_INICIAL = {
@@ -399,7 +400,53 @@ function SecaoIRAS() {
   );
 }
 
-function SecaoPragas({ d, onChange }) {
+function SecaoPragas({ d, onChange, clinicaId }) {
+  const [historico, setHistorico] = useState([]);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+
+  useEffect(() => {
+    if (!clinicaId) { setCarregandoHistorico(false); return; }
+    let ativo = true;
+
+    async function carregar() {
+      const { data: eventos } = await supabase
+        .from("eventos_auditoria")
+        .select("id, documento_id, metadata, created_at")
+        .eq("clinica_id", clinicaId)
+        .eq("tipo_evento", "documento_confirmado")
+        .order("created_at", { ascending: false });
+
+      const idsDocumentos = [...new Set((eventos || []).map(e => e.documento_id).filter(Boolean))];
+      let documentosMap = {};
+      if (idsDocumentos.length) {
+        const { data: docs } = await supabase
+          .from("documentos")
+          .select("id, nome, url")
+          .in("id", idsDocumentos);
+        documentosMap = Object.fromEntries((docs || []).map(doc => [doc.id, doc]));
+      }
+
+      const itens = (eventos || [])
+        .filter(e => e.metadata?.campos_aplicados?.empresa_dedetizacao)
+        .map(e => ({
+          id: e.id,
+          dataServico: e.metadata.campos_aplicados.ultima_dedetizacao,
+          empresa: e.metadata.campos_aplicados.empresa_dedetizacao,
+          documento: documentosMap[e.documento_id] || null,
+        }));
+
+      if (ativo) { setHistorico(itens); setCarregandoHistorico(false); }
+    }
+
+    carregar();
+    return () => { ativo = false; };
+  }, [clinicaId]);
+
+  async function abrirDocumento(url) {
+    const { data } = supabase.storage.from("documentos").getPublicUrl(url);
+    window.open(data.publicUrl, "_blank");
+  }
+
   return (
     <div>
       <InfoBox tipo="info" texto="📌 Base legal: RDC 52/2009 | RE ANVISA 1303/2005. A empresa de dedetização deve ter Autorização de Funcionamento ANVISA." />
@@ -410,6 +457,45 @@ function SecaoPragas({ d, onChange }) {
         <CampoEditavel label="Validade do CESP" campo="validade_cesp_pragas" dados={d} onChange={onChange} tipo="date" />
         <CampoEditavel label="Data da última dedetização" campo="ultima_dedetizacao" dados={d} onChange={onChange} tipo="date" obrigatorio />
         <CampoEditavel label="Data da próxima dedetização" campo="proxima_dedetizacao" dados={d} onChange={onChange} tipo="date" hint="Frequência mínima semestral" />
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 10 }}>
+          Histórico de intervenções
+        </div>
+        {carregandoHistorico ? (
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>Carregando...</div>
+        ) : historico.length === 0 ? (
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>Nenhuma intervenção registrada via análise de documento ainda.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {historico.map((item) => (
+              <div key={item.id} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 9,
+                padding: "10px 14px", fontSize: 13,
+              }}>
+                <div>
+                  <span style={{ fontWeight: 600, color: "#334155" }}>
+                    {item.dataServico ? new Date(item.dataServico + "T00:00:00").toLocaleDateString("pt-BR") : "—"}
+                  </span>
+                  <span style={{ color: "#64748b" }}> — {item.empresa}</span>
+                </div>
+                {item.documento && (
+                  <button
+                    onClick={() => abrirDocumento(item.documento.url)}
+                    style={{
+                      fontSize: 12, color: "#c8692a", background: "transparent",
+                      border: "none", cursor: "pointer", textDecoration: "underline",
+                    }}
+                  >
+                    📎 {item.documento.nome}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -546,7 +632,7 @@ export default function Manual() {
       case "tecnologias":  return <SecaoTecnologias d={dados} onChange={onChange} />;
       case "segpaciente":  return <SecaoSegPaciente />;
       case "iras":         return <SecaoIRAS />;
-      case "pragas":       return <SecaoPragas d={dados} onChange={onChange} />;
+      case "pragas":       return <SecaoPragas d={dados} onChange={onChange} clinicaId={clinicaId} />;
       case "versoes":      return <SecaoHistorico d={dados} onChange={onChange} versoes={versoes} onAddVersao={addVersao} />;
       default: return null;
     }
