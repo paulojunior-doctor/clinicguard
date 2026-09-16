@@ -1,6 +1,7 @@
 /**
- * ClinicGuard — Módulo de Documentos
- * Upload e download de PDFs via Supabase Storage
+ * ClinicGuard — Módulo de Documentos (Cofre Digital)
+ * Upload e download de PDFs via Supabase Storage, com categorização
+ * e registro na tabela `documentos` (escopo por clínica).
  *
  * Instalação:
  *   npm install @supabase/supabase-js
@@ -17,8 +18,19 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/lib/auth'
+import { useDocumentos } from '@/lib/useSupabase'
 
 const BUCKET = 'documentos'
+
+const CATEGORIAS = [
+  { id: 'outros', label: 'Outros documentos' },
+  { id: 'controle_pragas', label: 'Controle de Pragas e Vetores' },
+]
+
+function labelCategoria(id) {
+  return CATEGORIAS.find(c => c.id === id)?.label || 'Outros documentos'
+}
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 function formatBytes(bytes) {
@@ -75,6 +87,53 @@ const styles = `
     font-size: 13px;
     color: #7a7870;
     margin-top: 5px;
+  }
+
+  /* Categoria select */
+  .cg-categoria-wrap {
+    margin-bottom: 16px;
+  }
+
+  .cg-categoria-label {
+    font-size: 12px;
+    font-weight: 500;
+    color: #7a7870;
+    margin-bottom: 6px;
+    display: block;
+  }
+
+  .cg-select {
+    width: 100%;
+    max-width: 320px;
+    height: 40px;
+    border: 1px solid #dedad4;
+    border-radius: 8px;
+    padding: 0 12px;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    background: #fff;
+    color: #1a1916;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .cg-select:focus { border-color: #c8692a; }
+
+  /* Badge de categoria na lista */
+  .cg-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 500;
+    padding: 2px 8px;
+    border-radius: 99px;
+    background: #f0ede8;
+    color: #7a7870;
+    margin-top: 3px;
+  }
+
+  .cg-badge.pragas {
+    background: #fff0e8;
+    color: #c8692a;
   }
 
   /* Upload zone */
@@ -319,10 +378,15 @@ const styles = `
     overflow: hidden;
   }
 
+  .cg-file-name-col {
+    overflow: hidden;
+  }
+
   .cg-file-name-text {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
   }
 
   .cg-file-icon {
@@ -439,6 +503,9 @@ const IconRefresh = () => (
 
 // ─── Componente principal ────────────────────────────────────────────────────
 export default function Documentos() {
+  const { clinicaId } = useAuth()
+  const { documentos, criar: criarDocumento, remover: removerDocumento, refetch: refetchDocumentos } = useDocumentos(clinicaId)
+
   const [files, setFiles] = useState([])
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
@@ -447,23 +514,25 @@ export default function Documentos() {
   const [dragging, setDragging] = useState(false)
   const [search, setSearch] = useState('')
   const [toast, setToast] = useState(null)
+  const [categoriaSelecionada, setCategoriaSelecionada] = useState('outros')
   const fileInputRef = useRef()
 
-  // Carrega a lista de arquivos do bucket
+  // Carrega a lista de arquivos do bucket — escopado por clínica (pasta = clinica_id)
   const fetchFiles = async () => {
+    if (!clinicaId) { setLoading(false); return }
     setLoading(true)
-    const { data, error } = await supabase.storage.from(BUCKET).list('', {
+    const { data, error } = await supabase.storage.from(BUCKET).list(clinicaId, {
       sortBy: { column: 'created_at', order: 'desc' }
     })
     if (error) {
       showToast('Erro ao carregar arquivos: ' + error.message, 'error')
     } else {
-      setFiles(data || [])
+      setFiles((data || []).filter(f => f.name !== '.emptyFolderPlaceholder'))
     }
     setLoading(false)
   }
 
-  useEffect(() => { fetchFiles() }, [])
+  useEffect(() => { fetchFiles() }, [clinicaId])
 
   // Toast temporário
   const showToast = (msg, type = 'success') => {
@@ -471,9 +540,19 @@ export default function Documentos() {
     setTimeout(() => setToast(null), 3500)
   }
 
+  // Encontra o registro da tabela `documentos` correspondente a um arquivo do storage
+  const registroDoArquivo = (fileName) => {
+    const caminhoCompleto = `${clinicaId}/${fileName}`
+    return documentos.find(d => d.url === caminhoCompleto)
+  }
+
   // Upload de arquivo
   const handleUpload = async (file) => {
     if (!file) return
+    if (!clinicaId) {
+      showToast('Não foi possível identificar a clínica. Faça login novamente.', 'error')
+      return
+    }
     if (file.type !== 'application/pdf') {
       showToast('Apenas arquivos PDF são aceitos.', 'error')
       return
@@ -491,7 +570,8 @@ export default function Documentos() {
       })
     }, 200)
 
-    const filePath = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+    const nomeArquivo = `${Date.now()}_${file.name.replace(/[^a-zA-Z0-9._-]/g, '_')}`
+    const filePath = `${clinicaId}/${nomeArquivo}`
 
     const { error } = await supabase.storage.from(BUCKET).upload(filePath, file, {
       cacheControl: '3600',
@@ -501,6 +581,17 @@ export default function Documentos() {
     clearInterval(progressInterval)
     setUploadProgress(100)
 
+    if (!error) {
+      // Registra também na tabela `documentos`, com a categoria escolhida
+      await criarDocumento({
+        nome: file.name,
+        tipo: categoriaSelecionada,
+        tamanho: formatBytes(file.size),
+        url: filePath,
+        status: 'ok',
+      })
+    }
+
     setTimeout(() => {
       setUploading(false)
       setUploadProgress(0)
@@ -508,7 +599,7 @@ export default function Documentos() {
       if (error) {
         showToast('Erro no upload: ' + error.message, 'error')
       } else {
-        showToast(`"${file.name}" enviado com sucesso.`)
+        showToast(`"${file.name}" enviado como "${labelCategoria(categoriaSelecionada)}".`)
         fetchFiles()
       }
     }, 400)
@@ -516,7 +607,7 @@ export default function Documentos() {
 
   // Download de arquivo
   const handleDownload = async (fileName) => {
-    const { data, error } = await supabase.storage.from(BUCKET).download(fileName)
+    const { data, error } = await supabase.storage.from(BUCKET).download(`${clinicaId}/${fileName}`)
     if (error) {
       showToast('Erro ao baixar arquivo.', 'error')
       return
@@ -532,20 +623,22 @@ export default function Documentos() {
 
   // Visualizar PDF no navegador (nova aba)
   const handleView = async (fileName) => {
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(fileName)
+    const { data } = supabase.storage.from(BUCKET).getPublicUrl(`${clinicaId}/${fileName}`)
     window.open(data.publicUrl, '_blank')
   }
 
   // Excluir arquivo
   const handleDelete = async (fileName) => {
     if (!window.confirm(`Excluir "${fileName.replace(/^\d+_/, '')}"? Essa ação não pode ser desfeita.`)) return
-    const { error } = await supabase.storage.from(BUCKET).remove([fileName])
+    const { error } = await supabase.storage.from(BUCKET).remove([`${clinicaId}/${fileName}`])
     if (error) {
       showToast('Erro ao excluir: ' + error.message, 'error')
-    } else {
-      showToast('Arquivo excluído.')
-      fetchFiles()
+      return
     }
+    const registro = registroDoArquivo(fileName)
+    if (registro) await removerDocumento(registro.id)
+    showToast('Arquivo excluído.')
+    fetchFiles()
   }
 
   // Drag and drop
@@ -582,6 +675,23 @@ export default function Documentos() {
           </button>
         </div>
 
+        {/* Seletor de categoria */}
+        <div className="cg-categoria-wrap">
+          <label className="cg-categoria-label" htmlFor="cg-categoria-select">
+            Categoria do próximo documento a enviar
+          </label>
+          <select
+            id="cg-categoria-select"
+            className="cg-select"
+            value={categoriaSelecionada}
+            onChange={(e) => setCategoriaSelecionada(e.target.value)}
+          >
+            {CATEGORIAS.map(c => (
+              <option key={c.id} value={c.id}>{c.label}</option>
+            ))}
+          </select>
+        </div>
+
         {/* Upload zone */}
         <div
           className={`cg-upload-zone ${dragging ? 'dragging' : ''}`}
@@ -603,7 +713,7 @@ export default function Documentos() {
           <div className="cg-upload-label">
             {uploading ? 'Enviando...' : <>Arraste um PDF ou <em>clique para selecionar</em></>}
           </div>
-          <div className="cg-upload-hint">Somente arquivos PDF · máx. 50 MB</div>
+          <div className="cg-upload-hint">Somente arquivos PDF · máx. 50 MB · categoria: {labelCategoria(categoriaSelecionada)}</div>
         </div>
 
         {/* Barra de progresso */}
@@ -668,42 +778,51 @@ export default function Documentos() {
               <div className="cg-col-date">Enviado em</div>
               <div style={{ textAlign: 'right' }}>Ações</div>
             </div>
-            {filteredFiles.map((file) => (
-              <div className="cg-file-row" key={file.name}>
-                <div className="cg-file-name">
-                  <div className="cg-file-icon"><IconFile /></div>
-                  <span className="cg-file-name-text">
-                    {file.name.replace(/^\d+_/, '')}
-                  </span>
+            {filteredFiles.map((file) => {
+              const registro = registroDoArquivo(file.name)
+              const tipo = registro?.tipo || 'outros'
+              return (
+                <div className="cg-file-row" key={file.name}>
+                  <div className="cg-file-name">
+                    <div className="cg-file-icon"><IconFile /></div>
+                    <div className="cg-file-name-col">
+                      <span className="cg-file-name-text">
+                        {file.name.replace(/^\d+_/, '')}
+                      </span>
+                      <span className={`cg-badge ${tipo === 'controle_pragas' ? 'pragas' : ''}`}>
+                        {labelCategoria(tipo)}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="cg-file-size">{formatBytes(file.metadata?.size)}</div>
+                  <div className="cg-file-date">{formatDate(file.created_at)}</div>
+                  <div className="cg-file-actions">
+                    <button
+                      className="cg-icon-btn"
+                      title="Visualizar no navegador"
+                      onClick={() => handleView(file.name)}
+                    >
+                      <IconEye />
+                    </button>
+                    <button
+                      className="cg-icon-btn"
+                      title="Baixar"
+                      onClick={() => handleDownload(file.name)}
+                    >
+                      <IconDownload />
+                    </button>
+                    <button
+                      className="cg-icon-btn"
+                      title="Excluir"
+                      style={{ color: '#c8692a' }}
+                      onClick={() => handleDelete(file.name)}
+                    >
+                      <IconTrash />
+                    </button>
+                  </div>
                 </div>
-                <div className="cg-file-size">{formatBytes(file.metadata?.size)}</div>
-                <div className="cg-file-date">{formatDate(file.created_at)}</div>
-                <div className="cg-file-actions">
-                  <button
-                    className="cg-icon-btn"
-                    title="Visualizar no navegador"
-                    onClick={() => handleView(file.name)}
-                  >
-                    <IconEye />
-                  </button>
-                  <button
-                    className="cg-icon-btn"
-                    title="Baixar"
-                    onClick={() => handleDownload(file.name)}
-                  >
-                    <IconDownload />
-                  </button>
-                  <button
-                    className="cg-icon-btn"
-                    title="Excluir"
-                    style={{ color: '#c8692a' }}
-                    onClick={() => handleDelete(file.name)}
-                  >
-                    <IconTrash />
-                  </button>
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
