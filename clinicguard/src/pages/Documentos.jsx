@@ -28,6 +28,7 @@ const BUCKET = 'documentos'
 const CATEGORIAS = [
   { id: 'outros', label: 'Outros documentos' },
   { id: 'controle_pragas', label: 'Controle de Pragas e Vetores' },
+  { id: 'residuos', label: 'Resíduos (PGRSS)' },
 ]
 
 function labelCategoria(id) {
@@ -137,7 +138,10 @@ const styles = `
     background: #fff0e8;
     color: #c8692a;
   }
-
+  .cg-badge.residuos {
+    background: #e8f0ff;
+    color: #2a5ac8;
+  }
   /* Upload zone */
   .cg-upload-zone {
     border: 1.5px dashed #d4cfc7;
@@ -568,22 +572,15 @@ export default function Documentos() {
     setErroAnalise(null)
     setResultadoAnalise(null)
 
-    try {
-      const { data: blob, error: errDownload } = await supabase.storage
-        .from(BUCKET).download(`${clinicaId}/${file.name}`)
-      if (errDownload) throw new Error('Não foi possível baixar o documento para análise.')
-
-      const pdfBase64 = await new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result.split(',')[1])
-        reader.onerror = reject
-        reader.readAsDataURL(blob)
-      })
+        try {
+      const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(`${clinicaId}/${file.name}`)
+      const pdfUrl = urlData.publicUrl
+      const tipoParaAnalise = registro?.tipo === 'residuos' ? 'residuos' : 'controle_pragas'
 
       const res = await fetch('/api/analisar-documento', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64, fileName: file.name.replace(/^\d+_/, '') }),
+        body: JSON.stringify({ pdfUrl, fileName: file.name.replace(/^\d+_/, ''), tipo: tipoParaAnalise }),
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Erro ao analisar documento.')
@@ -604,20 +601,42 @@ export default function Documentos() {
   }
 
   // Aplica os campos confirmados pelo usuário ao Manual e às Obrigações
-  const handleConfirmarExtracao = async (camposEditados) => {
+    const handleConfirmarExtracao = async (camposEditados, resultado) => {
+    const classification = resultado?.classification
+    const comprovanteUrl = arquivoEmAnalise?.registro?.url || null
+    const comprovanteNome = arquivoEmAnalise?.fileName?.replace(/^\d+_/, '') || null
+
     const STORAGE_KEY = 'clinicguard_manual_dados'
     const atual = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}')
     const atualizado = { ...atual, ...camposEditados }
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizado))
+    if (Object.keys(camposEditados).length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(atualizado))
+    }
 
-    const geradas = gerarObrigacoesDoManual(atualizado)
-    const obrigacaoPragas = geradas.find(o => o.origem === 'manual_dedetizacao')
     let obrigacaoSalva = null
-    if (obrigacaoPragas) {
+
+    const classificacoesPragas = ['certificado_controle_pragas', 'laudo_controle_pragas', 'comprovante_servico', 'relatorio_controle_pragas']
+    if (classificacoesPragas.includes(classification)) {
+      const geradas = gerarObrigacoesDoManual(atualizado)
+      const obrigacaoPragas = geradas.find(o => o.origem === 'manual_dedetizacao')
+      if (obrigacaoPragas) {
+        obrigacaoSalva = await upsertPorOrigem({
+          ...obrigacaoPragas,
+          comprovante_url: comprovanteUrl,
+          comprovante_nome: comprovanteNome,
+        })
+      }
+    } else if (classification === 'pgrss_plano' && camposEditados.proxima_revisao_pgrss) {
       obrigacaoSalva = await upsertPorOrigem({
-        ...obrigacaoPragas,
-        comprovante_url: arquivoEmAnalise?.registro?.url || null,
-        comprovante_nome: arquivoEmAnalise?.fileName?.replace(/^\d+_/, '') || null,
+        origem: 'manual_pgrss',
+        nome: 'Revisão do PGRSS',
+        categoria: 'Resíduos',
+        periodicidade: 'Anual',
+        responsavel: camposEditados.responsavel_pgrss || atual.responsavel_pgrss || 'Responsável Técnico',
+        proxima_data: camposEditados.proxima_revisao_pgrss,
+        descricao: `PGRSS emitido em ${camposEditados.data_emissao_pgrss ? new Date(camposEditados.data_emissao_pgrss + 'T00:00:00').toLocaleDateString('pt-BR') : '—'}.`,
+        comprovante_url: comprovanteUrl,
+        comprovante_nome: comprovanteNome,
       })
     }
 
@@ -625,13 +644,22 @@ export default function Documentos() {
       clinica_id: clinicaId,
       documento_id: arquivoEmAnalise?.registro?.id || null,
       tipo_evento: 'documento_confirmado',
-      metadata: { campos_aplicados: camposEditados, obrigacao_id: obrigacaoSalva?.id || null },
+      metadata: {
+        classification: classification || null,
+        campos_aplicados: camposEditados,
+        extraction: resultado?.extraction || null,
+        obrigacao_id: obrigacaoSalva?.id || null,
+      },
     })
 
     setModalAberto(false)
-    showToast(obrigacaoPragas
-      ? '✅ Manual e Obrigações atualizados a partir do documento.'
-      : '✅ Manual atualizado. (Sem data ou periodicidade informada, a obrigação não foi criada — preencha manualmente na aba Obrigações se necessário.)')
+    showToast(
+      obrigacaoSalva
+        ? '✅ Manual e Obrigações atualizados a partir do documento.'
+        : Object.keys(camposEditados).length > 0
+          ? '✅ Manual atualizado a partir do documento.'
+          : '✅ Documento registrado no histórico.'
+    )
   }
 
   // Upload de arquivo
@@ -877,15 +905,15 @@ export default function Documentos() {
                       <span className="cg-file-name-text">
                         {file.name.replace(/^\d+_/, '')}
                       </span>
-                      <span className={`cg-badge ${tipo === 'controle_pragas' ? 'pragas' : ''}`}>
+                                           <span className={`cg-badge ${tipo === 'controle_pragas' ? 'pragas' : tipo === 'residuos' ? 'residuos' : ''}`}>
                         {labelCategoria(tipo)}
                       </span>
                     </div>
                   </div>
                   <div className="cg-file-size">{formatBytes(file.metadata?.size)}</div>
                   <div className="cg-file-date">{formatDate(file.created_at)}</div>
-                  <div className="cg-file-actions">
-                    {tipo === 'controle_pragas' && (
+                                    <div className="cg-file-actions">
+                    {(tipo === 'controle_pragas' || tipo === 'residuos') && (
                       <button
                         className="cg-icon-btn"
                         title="Analisar com IA"

@@ -40,9 +40,11 @@ const ESTADO_INICIAL = {
   empresa_residuos: "",
   cnpj_empresa_residuos: "",
   frequencia_coleta: "",
-  numero_cesp: "",
+    numero_cesp: "",
   validade_cesp: "",
   responsavel_pgrss: "",
+  data_emissao_pgrss: "",
+  proxima_revisao_pgrss: "",
   // Seção 7 — Água
   sistema_abastecimento: "",
   responsavel_agua: "",
@@ -288,7 +290,71 @@ function SecaoPOPs() {
   );
 }
 
-function SecaoPGRSS({ d, onChange }) {
+function SecaoPGRSS({ d, onChange, clinicaId }) {
+  const [historico, setHistorico] = useState([]);
+  const [carregandoHistorico, setCarregandoHistorico] = useState(true);
+
+  useEffect(() => {
+    if (!clinicaId) { setCarregandoHistorico(false); return; }
+    let ativo = true;
+
+    async function carregar() {
+      const { data: eventos, error: erroEventos } = await supabase
+        .from("eventos_auditoria")
+        .select("id, documento_id, metadata, timestamp")
+        .eq("clinica_id", clinicaId)
+        .eq("tipo_evento", "documento_confirmado")
+        .order("timestamp", { ascending: false });
+
+      if (erroEventos) console.error("Erro ao carregar histórico de resíduos:", erroEventos);
+
+      const classificacoesResiduos = ["pgrss_plano", "contrato_coleta_residuos", "laudo_incineracao"];
+      const relevantes = (eventos || []).filter(e => classificacoesResiduos.includes(e.metadata?.classification));
+
+      const idsDocumentos = [...new Set(relevantes.map(e => e.documento_id).filter(Boolean))];
+      let documentosMap = {};
+      if (idsDocumentos.length) {
+        const { data: docs } = await supabase
+          .from("documentos")
+          .select("id, nome, url")
+          .in("id", idsDocumentos);
+        documentosMap = Object.fromEntries((docs || []).map(doc => [doc.id, doc]));
+      }
+
+      const documentosJaListados = new Set();
+      const itens = relevantes
+        .filter(e => {
+          if (!e.documento_id) return true;
+          if (documentosJaListados.has(e.documento_id)) return false;
+          documentosJaListados.add(e.documento_id);
+          return true;
+        })
+        .map(e => {
+          const ext = e.metadata?.extraction || {};
+          let resumo = "Documento de resíduos";
+          if (e.metadata.classification === "pgrss_plano") {
+            const emissao = ext.emission_date?.value;
+            resumo = `PGRSS emitido em ${emissao ? new Date(emissao + "T00:00:00").toLocaleDateString("pt-BR") : "—"}`;
+          } else if (e.metadata.classification === "contrato_coleta_residuos") {
+            resumo = `Contrato — ${ext.waste_company_name?.value || "—"} (${ext.collection_frequency?.value || "sem periodicidade informada"})`;
+          } else if (e.metadata.classification === "laudo_incineracao") {
+            resumo = `Laudo de incineração — período ${ext.report_period?.value || "—"}, ${ext.quantity_kg?.value ?? "—"} kg`;
+          }
+          return { id: e.id, resumo, documento: documentosMap[e.documento_id] || null };
+        });
+
+      if (ativo) { setHistorico(itens); setCarregandoHistorico(false); }
+    }
+
+    carregar();
+    return () => { ativo = false; };
+  }, [clinicaId]);
+
+  async function abrirDocumento(url) {
+    const { data } = supabase.storage.from("documentos").getPublicUrl(url);
+    window.open(data.publicUrl, "_blank");
+  }
+
   return (
     <div>
       <InfoBox tipo="info" texto="📌 Base legal: RDC 222/2018 | CONAMA 358/2005. Todo serviço de saúde é obrigado a ter PGRSS aprovado pela VISA local." />
@@ -299,8 +365,41 @@ function SecaoPGRSS({ d, onChange }) {
         <CampoEditavel label="Responsável pelo PGRSS" campo="responsavel_pgrss" dados={d} onChange={onChange} placeholder="Nome e registro profissional" hint="Pode ser o próprio RT ou profissional habilitado" />
         <CampoEditavel label="Nº do CESP (Certificado de Execução)" campo="numero_cesp" dados={d} onChange={onChange} obrigatorio placeholder="Número do certificado" />
         <CampoEditavel label="Validade do CESP" campo="validade_cesp" dados={d} onChange={onChange} tipo="date" />
+        <CampoEditavel label="Data de emissão do PGRSS" campo="data_emissao_pgrss" dados={d} onChange={onChange} tipo="date" />
+        <CampoEditavel label="Próxima revisão do PGRSS" campo="proxima_revisao_pgrss" dados={d} onChange={onChange} tipo="date" hint="Revisão obrigatória a cada alteração relevante" />
       </div>
       <InfoBox tipo="aviso" texto="⚠️ O CESP deve ser mantido por 5 anos e apresentado obrigatoriamente em vistoria sanitária. Renove semestralmente." />
+
+      <div style={{ marginTop: 24 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "#475569", marginBottom: 10 }}>
+          Histórico de documentos de resíduos
+        </div>
+        {carregandoHistorico ? (
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>Carregando...</div>
+        ) : historico.length === 0 ? (
+          <div style={{ fontSize: 13, color: "#94a3b8" }}>Nenhum documento de resíduos registrado via análise ainda.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {historico.map((item) => (
+              <div key={item.id} style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 9,
+                padding: "10px 14px", fontSize: 13,
+              }}>
+                <span style={{ color: "#334155" }}>{item.resumo}</span>
+                {item.documento && (
+                  <button
+                    onClick={() => abrirDocumento(item.documento.url)}
+                    style={{ fontSize: 12, color: "#c8692a", background: "transparent", border: "none", cursor: "pointer", textDecoration: "underline" }}
+                  >
+                    📎 {item.documento.nome}
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -635,7 +734,7 @@ export default function Manual() {
       case "organograma":  return <SecaoOrganograma d={dados} onChange={onChange} />;
       case "rh":           return <SecaoRH d={dados} onChange={onChange} />;
       case "pops":         return <SecaoPOPs />;
-      case "pgrss":        return <SecaoPGRSS d={dados} onChange={onChange} />;
+      case "pgrss":        return <SecaoPGRSS d={dados} onChange={onChange} clinicaId={clinicaId} />;
       case "agua":         return <SecaoAgua d={dados} onChange={onChange} />;
       case "manutencao":   return <SecaoManutencao d={dados} onChange={onChange} />;
       case "tecnologias":  return <SecaoTecnologias d={dados} onChange={onChange} />;
