@@ -40,9 +40,7 @@ const ESTADO_INICIAL = {
   empresa_residuos: "",
   cnpj_empresa_residuos: "",
   frequencia_coleta: "",
-    numero_cesp: "",
-  validade_cesp: "",
-  responsavel_pgrss: "",
+  responsavel_pgrss:"",
   data_emissao_pgrss: "",
   proxima_revisao_pgrss: "",
   // Seção 7 — Água
@@ -108,7 +106,7 @@ const SECOES = [
   { id:"organograma",  icone:"👥", titulo:"3. Organograma e Responsabilidades",  campos:["nome_1","nome_2"] },
   { id:"rh",           icone:"🧑‍⚕️", titulo:"4. Gestão de Recursos Humanos",   campos:["num_colaboradores","plano_educacao"] },
   { id:"pops",         icone:"📄", titulo:"5. POPs — Referência",                campos:[] },
-  { id:"pgrss",        icone:"♻️", titulo:"6. PGRSS",                            campos:["empresa_residuos","numero_cesp"] },
+  { id:"pgrss", icone:"♻️", titulo:"6. PGRSS", campos:["empresa_residuos","responsavel_pgrss"] },
   { id:"agua",         icone:"💧", titulo:"7. Plano de Controle da Água",        campos:["sistema_abastecimento","ultima_limpeza_reservatorio"] },
   { id:"manutencao",   icone:"🔧", titulo:"8. Plano de Manutenção",              campos:["empresa_manutencao","ultima_manutencao_autoclave"] },
   { id:"tecnologias",  icone:"⚙️",  titulo:"9. Plano de Gestão de Tecnologias", campos:["supervisor_radiologico","data_levantamento_radiometrico"] },
@@ -363,8 +361,6 @@ function SecaoPGRSS({ d, onChange, clinicaId }) {
         <CampoEditavel label="CNPJ da empresa coletora" campo="cnpj_empresa_residuos" dados={d} onChange={onChange} placeholder="00.000.000/0001-00" />
         <CampoEditavel label="Frequência de coleta" campo="frequencia_coleta" dados={d} onChange={onChange} placeholder="Ex: Semanal, Quinzenal, Mensal" />
         <CampoEditavel label="Responsável pelo PGRSS" campo="responsavel_pgrss" dados={d} onChange={onChange} placeholder="Nome e registro profissional" hint="Pode ser o próprio RT ou profissional habilitado" />
-        <CampoEditavel label="Nº do CESP (Certificado de Execução)" campo="numero_cesp" dados={d} onChange={onChange} obrigatorio placeholder="Número do certificado" />
-        <CampoEditavel label="Validade do CESP" campo="validade_cesp" dados={d} onChange={onChange} tipo="date" />
         <CampoEditavel label="Data de emissão do PGRSS" campo="data_emissao_pgrss" dados={d} onChange={onChange} tipo="date" />
         <CampoEditavel label="Próxima revisão do PGRSS" campo="proxima_revisao_pgrss" dados={d} onChange={onChange} tipo="date" hint="Revisão obrigatória a cada alteração relevante" />
       </div>
