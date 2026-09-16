@@ -409,12 +409,14 @@ function SecaoPragas({ d, onChange, clinicaId }) {
     let ativo = true;
 
     async function carregar() {
-      const { data: eventos } = await supabase
+            const { data: eventos, error: erroEventos } = await supabase
         .from("eventos_auditoria")
-        .select("id, documento_id, metadata, created_at")
+        .select("id, documento_id, metadata, timestamp")
         .eq("clinica_id", clinicaId)
         .eq("tipo_evento", "documento_confirmado")
-        .order("created_at", { ascending: false });
+        .order("timestamp", { ascending: false });
+
+      if (erroEventos) console.error("Erro ao carregar histórico:", erroEventos);
 
       const idsDocumentos = [...new Set((eventos || []).map(e => e.documento_id).filter(Boolean))];
       let documentosMap = {};
