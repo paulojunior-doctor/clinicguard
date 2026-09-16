@@ -103,8 +103,18 @@ Formato exato:
       return res.status(500).json({ error: 'Erro ao chamar API da IA', detalhe: err.slice(0, 1000) })
     }
 
-    const data = await response.json()
+        const data = await response.json()
     const texto = data.content?.[0]?.text || ''
+
+    if (!texto) {
+      console.error('Resposta vazia da IA. Estrutura completa:', JSON.stringify(data))
+      return res.status(500).json({
+        error: 'Resposta vazia da IA',
+        debug_stop_reason: data.stop_reason,
+        debug_content_types: (data.content || []).map(b => b.type),
+        debug_full: JSON.stringify(data).slice(0, 2000),
+      })
+    }
 
     // Remove eventuais blocos de markdown, caso a IA os inclua mesmo assim
     const textoLimpo = texto.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
