@@ -428,8 +428,15 @@ function SecaoPragas({ d, onChange, clinicaId }) {
         documentosMap = Object.fromEntries((docs || []).map(doc => [doc.id, doc]));
       }
 
+            const documentosJaListados = new Set();
       const itens = (eventos || [])
         .filter(e => e.metadata?.campos_aplicados?.empresa_dedetizacao)
+        .filter(e => {
+          if (!e.documento_id) return true;
+          if (documentosJaListados.has(e.documento_id)) return false;
+          documentosJaListados.add(e.documento_id);
+          return true;
+        })
         .map(e => ({
           id: e.id,
           dataServico: e.metadata.campos_aplicados.ultima_dedetizacao,
