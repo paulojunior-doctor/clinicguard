@@ -113,8 +113,8 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Método não permitido' })
   }
 
-  const { pdfBase64, fileName, tipo } = req.body
-  if (!pdfBase64) {
+    const { pdfBase64, pdfUrl, fileName, tipo } = req.body
+  if (!pdfBase64 && !pdfUrl) {
     return res.status(400).json({ error: 'PDF não fornecido' })
   }
 
@@ -135,7 +135,20 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: `Tipo de documento desconhecido: ${tipoDocumento}` })
   }
 
-  try {
+    try {
+    let base64Final = pdfBase64
+
+    // Se veio uma URL em vez do base64 direto, o servidor baixa o PDF
+    // (evita o limite de tamanho de corpo de requisição do navegador → Vercel)
+    if (!base64Final && pdfUrl) {
+      const pdfResponse = await fetch(pdfUrl)
+      if (!pdfResponse.ok) {
+        return res.status(400).json({ error: 'Não foi possível baixar o PDF da URL fornecida' })
+      }
+      const arrayBuffer = await pdfResponse.arrayBuffer()
+      base64Final = Buffer.from(arrayBuffer).toString('base64')
+    }
+
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -151,10 +164,10 @@ export default async function handler(req, res) {
           content: [
             {
               type: 'document',
-              source: {
+                            source: {
                 type: 'base64',
                 media_type: 'application/pdf',
-                data: pdfBase64,
+                data: base64Final,
               },
             },
             { type: 'text', text: prompt },
